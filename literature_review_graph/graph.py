@@ -3,7 +3,7 @@ from langchain_core.documents import Document
 from typing_extensions import TypedDict, Annotated
 from dataclasses import field
 from shared.state import reduce_docs
-from state import LitState
+from .state import LitState
 from shared.utils import get_llm      
 
 
@@ -48,11 +48,11 @@ def verify_section(state: LitState) -> dict:
 builder = StateGraph(LitState)
 builder.add_node("plan_literature_review", plan_review)
 builder.add_node("refine_section", refine_section)
-builder.add_node("verify", verify_section)
+builder.add_node("verify_section", verify_section)
 
-builder.add_edge(START, "plan")
-builder.add_edge("plan", "refine")
-builder.add_edge("refine", "verify")
-builder.add_edge("verify", END)
+builder.add_edge(START, "plan_literature_review")
+builder.add_edge("plan_literature_review", "refine_section")
+builder.add_edge("refine_section", "verify_section")
+builder.add_edge("verify_section", END)
 
 graph = builder.compile()      
