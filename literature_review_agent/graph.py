@@ -3,25 +3,18 @@ from langchain_core.documents import Document
 from typing_extensions import TypedDict, Annotated
 from dataclasses import field
 from literature_review_agent.state import LitState, Section
-from literature_review_agent.utils import get_llm      
-from typing import List
+from literature_review_agent.utils import get_llm   
+from literature_review_agent.configuration import Configuration  
+from typing import List, Optional
+from langchain_core.runnables import RunnableConfig
 import json, re
 
-def plan_review(state: LitState) -> dict:
+def plan_review(state: LitState, *, config: Optional[RunnableConfig] ) -> dict:
     """Return a structured literature-review plan."""
-    prompt = (
-        "You are an expert research assistant.\n"
-        f"Generate a literature-review plan on '{state.topic}' "
-        f"using papers {state.paper_recency}.\n"
-        "Return JSON exactly in this format:\n"
-        "[\n"
-        "  {\"title\": <section title>,\n"
-        "   \"key_points\": [\n"
-        "       {\"text\": <point>, \"papers\": [<url1>, <url2>, ...]},\n"
-        "       ...\n"
-        "   ]},\n"
-        "  ...\n"
-        "]"
+    configuration = Configuration.from_runnable_config(config)
+    prompt = configuration.research_prompt.format(
+        topic=state.topic,
+        paper_recency=state.paper_recency
     )
 
     def parse_llm_plan(raw: str) -> List[dict]:
@@ -33,7 +26,7 @@ def plan_review(state: LitState) -> dict:
         return json.loads(cleaned)
 
     
-    response_text = get_llm().invoke(prompt).content   
+    response_text = get_llm(cfg=configuration).invoke(prompt).content   
     print(f"LLM response: {response_text}")
 
     try:

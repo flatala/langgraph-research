@@ -3,6 +3,7 @@ from langchain_openai import ChatOpenAI
 from typing import Any, Union, Optional, Literal
 from dotenv import load_dotenv
 from pathlib import Path
+from literature_review_agent.configuration import Configuration
 import hashlib
 import uuid
 
@@ -11,10 +12,11 @@ load_dotenv(
     override=False,         
 )    
 
-def get_llm():
+def get_llm(cfg: Configuration) -> ChatOpenAI:
     return ChatOpenAI(
-        model="gpt-4o-mini",
-        temperature=0.2,
+        model=cfg.model,
+        api_key=cfg.openai_api_key,
+        streaming=True,
     )
 
 def _generate_uuid(page_content: str) -> str:
