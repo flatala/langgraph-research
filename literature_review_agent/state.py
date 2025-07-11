@@ -3,9 +3,14 @@ from langchain_core.documents import Document
 from dataclasses import dataclass, field
 from literature_review_agent.utils import reduce_docs
 
+class PaperRef(TypedDict):
+    title: str     
+    url: str  
+    summary: str
+
 class KeyPoint(TypedDict):
-    text: str              
-    papers: List[str]      
+    text: str
+    papers: List[PaperRef]  
 
 class Section(TypedDict):
     title: str
@@ -13,6 +18,7 @@ class Section(TypedDict):
 
 @dataclass(kw_only=True)
 class LitState:
+    messages: list
     topic: str
     paper_recency: str                
     plan: List[Section]                

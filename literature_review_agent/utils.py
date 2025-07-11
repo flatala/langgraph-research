@@ -12,9 +12,16 @@ load_dotenv(
     override=False,         
 )    
 
+def get_orchestrator_llm(cfg: Configuration) -> ChatOpenAI:
+    return ChatOpenAI(
+        model=cfg.orchestrator_model,
+        api_key=cfg.openai_api_key,
+        streaming=True,
+    )
+
 def get_llm(cfg: Configuration) -> ChatOpenAI:
     return ChatOpenAI(
-        model=cfg.model,
+        model=cfg.text_model,
         api_key=cfg.openai_api_key,
         streaming=True,
     )

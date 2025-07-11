@@ -1,41 +1,83 @@
 from langgraph.graph import StateGraph, START, END
+from langgraph.prebuilt import chat_agent_executor, ToolNode, tools_condition
 from langchain_core.documents import Document
+from langchain_core.runnables import RunnableConfig
+from langchain_core.messages import HumanMessage, AIMessage, ToolMessage
+
+from literature_review_agent.state import LitState, Section
+from literature_review_agent.utils import get_llm   , get_orchestrator_llm
+from literature_review_agent.configuration import Configuration  
+from literature_review_agent.tools import arxiv_search, summarise_text
+
+from typing import List, Optional
 from typing_extensions import TypedDict, Annotated
 from dataclasses import field
-from literature_review_agent.state import LitState, Section
-from literature_review_agent.utils import get_llm   
-from literature_review_agent.configuration import Configuration  
-from typing import List, Optional
-from langchain_core.runnables import RunnableConfig
+from pprint import pprint
 import json, re
 
-def plan_review(state: LitState, *, config: Optional[RunnableConfig] ) -> dict:
-    """Return a structured literature-review plan."""
-    configuration = Configuration.from_runnable_config(config)
-    prompt = configuration.research_prompt.format(
+
+async def plan_review(state: LitState, *, config: Optional[RunnableConfig] = None) -> dict:
+    cfg = Configuration.from_runnable_config(config)
+
+    prompt = cfg.research_prompt.format(
         topic=state.topic,
-        paper_recency=state.paper_recency
+        paper_recency=state.paper_recency,
     )
 
-    def parse_llm_plan(raw: str) -> List[dict]:
-        """
-        Strip markdown code fences and return a Python list.
-        Raises JSONDecodeError if the cleaned string is still invalid.
-        """
-        cleaned = re.sub(r"^```[\w-]*\n|\n```$", "", raw.strip(), flags=re.S)
-        return json.loads(cleaned)
+    tools = [arxiv_search]
+    llm = (
+        get_orchestrator_llm(cfg=cfg)
+        .bind_tools(tools, tool_choice="auto")
+        .with_config({"response_format": {"type": "json_object"}})
+    )
 
-    
-    response_text = get_llm(cfg=configuration).invoke(prompt).content   
-    print(f"LLM response: {response_text}")
+    tool_map = {t.name: t for t in tools}
 
-    try:
-        plan: List[Section] = parse_llm_plan(response_text)
-    except json.JSONDecodeError as err:
-        raise ValueError("LLM did not return valid JSON") from err
+    messages = state.messages.copy()  
+    messages.append(HumanMessage(content=prompt))
 
-    return {"plan": plan}
+    while True:
+        ai_msg: AIMessage = await llm.ainvoke(messages)
+        messages.append(ai_msg)
 
+        if not ai_msg.tool_calls:         
+            break
+
+        for call in ai_msg.tool_calls:
+            tool = tool_map[call["name"]]
+
+            if call["name"] == "arxiv_search":
+                papers = await tool.ainvoke(call["args"])
+
+                slim_papers = [
+                    {
+                        "title": p["title"],
+                        "url":   p["url"],
+                        "comment": p["summary"],   # no LLM summariser needed
+                    }
+                    for p in papers
+                ]
+
+                result_for_history = slim_papers
+
+            else:
+                result_for_history = await tool.ainvoke(call["args"])
+
+            messages.append(
+                ToolMessage(
+                    name=call["name"],
+                    tool_call_id=call["id"],
+                    content=json.dumps(result_for_history)
+                )
+            )
+
+    text = re.sub(r"^```[\w-]*\n|\n```$", "", messages[-1].content.strip(), flags=re.S)
+    plan: List[Section] = json.loads(text)
+
+    return {
+        "plan": plan,
+        "messages": messages,
+    }
 
 def refine_section(state: LitState) -> dict:
     """Draft the first section (placeholder logic)."""
@@ -62,15 +104,28 @@ def verify_section(state: LitState) -> dict:
 
 
 builder = StateGraph(LitState)
+tools_node = ToolNode([arxiv_search])
+
 builder.add_node("plan_literature_review", plan_review)
-builder.add_node("refine_section", refine_section)
-builder.add_node("verify_section", verify_section)
+builder.add_node("tools", tools_node)
 
 builder.add_edge(START, "plan_literature_review")
-builder.add_edge("plan_literature_review", END)
+builder.add_conditional_edges(
+    "plan_literature_review",
+    tools_condition,              
+    {"tools": "tools", "__end__": END}
+)
+builder.add_edge("tools", "plan_literature_review")
 
+graph = builder.compile() 
+
+# builder.add_edge(START, "plan_literature_review")
+# builder.add_node("plan_literature_review", plan_review)
+# builder.add_edge("plan_literature_review", END)
+
+# builder.add_edge("plan_literature_review", END)
+# builder.add_node("refine_section", refine_section)
+# builder.add_node("verify_section", verify_section)
 # builder.add_edge("plan_literature_review", "refine_section")
 # builder.add_edge("refine_section", "verify_section")
 # builder.add_edge("verify_section", END)
-
-graph = builder.compile()      

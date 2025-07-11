@@ -5,12 +5,16 @@ from langchain_core.runnables import RunnableConfig, ensure_config
 from literature_review_agent import prompts
 import os
 
-
 @dataclass(kw_only=True)
 class Configuration:
     """The configuration for the agent."""
 
-    model: Annotated[str, {"__template_metadata__": {"kind": "llm"}}] = field(
+    orchestrator_model: Annotated[str, {"__template_metadata__": {"kind": "llm"}}] = field(
+        default="o3-mini-2025-01-31",
+        metadata={"description": "The model planning the literature review process."},
+    )
+
+    text_model: Annotated[str, {"__template_metadata__": {"kind": "llm"}}] = field(
         default="gpt-4o-mini",
         metadata={"description": "OpenAI model name, e.g. 'gpt-4o-mini'."},
     )
