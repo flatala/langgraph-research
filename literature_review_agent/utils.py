@@ -1,15 +1,26 @@
+from langchain_core.documents import Document
+from langchain_openai import ChatOpenAI
+from typing import Any, Union, Optional, Literal
+from dotenv import load_dotenv
+from pathlib import Path
 import hashlib
 import uuid
-from typing import Any, Literal, Optional, Union
 
-from langchain_core.documents import Document
+load_dotenv(                
+    Path(__file__).resolve().parent.parent / ".env",
+    override=False,         
+)    
 
+def get_llm():
+    return ChatOpenAI(
+        model="gpt-4o-mini",
+        temperature=0.2,
+    )
 
 def _generate_uuid(page_content: str) -> str:
     """Generate a UUID for a document based on page content."""
     md5_hash = hashlib.md5(page_content.encode()).hexdigest()
     return str(uuid.UUID(md5_hash))
-
 
 def reduce_docs(
     existing: Optional[list[Document]],

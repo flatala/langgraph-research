@@ -1,6 +1,7 @@
-from literature_review_graph.graph import graph
+from literature_review_agent.graph import graph
 from pathlib import Path
 from dotenv import load_dotenv
+from pprint import pprint
 
 if __name__ == "__main__":
 
@@ -12,11 +13,11 @@ if __name__ == "__main__":
     init_state = {
         "topic": "LLM hallucination mitigation",
         "paper_recency": "after 2023",
-        "plan": "",
-        "documents": [],
+        "plan": [],
+        "info": [],
         "draft_sections": [],
         "verified_sections": [],
     }
 
     result = graph.invoke(init_state)
-    print(result["verified_sections"][0])
+    pprint(result)
