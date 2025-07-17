@@ -37,7 +37,6 @@ async def arxiv_search(
     results = []
     for d in docs:
         m = d.metadata
-
         results.append(
             {
                 "title":   m["Title"],

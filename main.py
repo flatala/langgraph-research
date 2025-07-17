@@ -18,7 +18,7 @@ if __name__ == "__main__":
         topic="Personalisation and conditional alignment of LLMs.",
         paper_recency="after 2023",
         search_queries=[],
-        plan=[],
+        plan=None,
         draft_sections=[],
         verified_sections=[],
     )
@@ -26,6 +26,5 @@ if __name__ == "__main__":
     result_dict = asyncio.run(graph.ainvoke(init_state))
     final_state = LitState(**result_dict)
 
-
-    final_state.print_messages()
+    # final_state.print_messages()
     final_state.print_plan()

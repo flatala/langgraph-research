@@ -8,8 +8,10 @@ import json
 
 class PaperRef(TypedDict):
     title: str     
+    year: int
     url: str  
     summary: str
+    citation_reason: str
 
 class KeyPoint(TypedDict):
     text: str
@@ -21,6 +23,10 @@ class Section(TypedDict):
     outline: str
     key_points: List[KeyPoint]
 
+class Plan(TypedDict):
+    plan: List[Section]
+    reasoning: str
+
 @dataclass(kw_only=True)
 class LitState:
     messages: list
@@ -31,41 +37,48 @@ class LitState:
     paper_recency: str   
 
     search_queries: List[str]    
-    plan: List[Section]       
+    plan: Plan    
 
     draft_sections: List[str]          
     verified_sections: List[str]
 
-
     def print_plan(self, *, include_papers: bool = True) -> str:
         """
-        Nicely format `self.plan` for quick inspection.
-
-        Args:
-            include_papers: if False, hide the individual paper lines
-                            (useful when the list is very long).
-
-        Returns:
-            The formatted plan as a single string (it is also printed).
+        Nicely format the reasoning and the plan for quick inspection.
         """
+        print("\n\nResearch Plan & Reasoning:\n")
 
-        print("\n \n Research Plan: \n")
-
-        if not self.plan:
+        if not self.plan or not self.plan.get("plan"):
             msg = "⚠️  Plan is empty."
             print(msg)
             return msg
 
         lines: List[str] = []
-        for section in self.plan:
+
+        # Print reasoning
+        reasoning = self.plan.get("reasoning", "").strip()
+        if reasoning:
+            lines.append("Reasoning:\n" + indent(reasoning, "  "))
+            lines.append("-" * 60)
+
+        # Print plan sections
+        for section in self.plan["plan"]:
             lines.append(f"Section {section['number']}: {section['title']}")
             lines.append(indent(section['outline'], "  "))
             for kp in section['key_points']:
                 lines.append(indent(f"• {kp['text']}", "  "))
                 if include_papers:
                     for p in kp["papers"]:
-                        comment = f" — {p['comment']}" if p.get("comment") else ""
-                        lines.append(indent(f"- {p['title']} ({p['url']}){comment}", "      "))
+                        # Show all fields, safely handling missing ones
+                        paper_str = f"- {p['title']} ({p['year']}) <{p['url']}>"
+                        # Add citation_reason and summary if available
+                        citation_reason = p.get("citation_reason") or p.get("comment") or ""
+                        summary = p.get("summary") or ""
+                        if citation_reason:
+                            paper_str += f"\n      • Citation reason: {citation_reason}"
+                        if summary:
+                            paper_str += f"\n      • Summary: {summary}"
+                        lines.append(indent(paper_str, "      "))
             lines.append("")  # blank line between sections
 
         formatted = "\n".join(lines)

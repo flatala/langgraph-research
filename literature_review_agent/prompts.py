@@ -61,36 +61,45 @@ Structure guidelines
   – `outline`    1‑‑2 sentences explaining why this section is included and how it fits into the entire review.  
   – `key_points`  2 – 4 bullet points, each citing 2 – 3 primary papers.
 
-  
 ───────────────
-Important extra guidlines
+Critical citation & coverage guidelines
 ───────────────
-• !!! Cite only peer‑reviewed arXiv papers; AVOID duplicates unless central. !!! 
-• !!! If you are struggling to find wnough entries to avoid duplicates, fell free to prepare additional search queries beond the provided ones. !!!
+• For **each section**, you **must cite papers that have NOT been used in previous sections** whenever possible.
+• **Do NOT reuse the same paper in multiple sections** unless it is *absolutely central* to both; if you do reuse, briefly justify why in the "comment" field.
+• Ensure that **every relevant paper from your arXiv search is cited at least once** somewhere in the review (unless clearly irrelevant).
+• **Distribute paper citations as evenly as possible across all sections and key points**, to maximize diversity and coverage.
+• If there are more papers than needed, prioritize the most recent and highly-cited works for key sections, but strive for broad representation.
 
 ───────────────
 Output format  (MUST be valid JSON – no Markdown, no comments)
 ───────────────
-[
-    {{
-        "number": <int>,
-        "title": "<section title>",
-        "outline": "<1‑2 sentence explanation of its role in the review>",
-        "key_points": [
-            {{
-                "text": "<concise sentence ideally ≤ 25 words>",
-                "papers": [
-                    {{ "title": "<paper title>",
-                       "url":   "<https://arxiv.org/abs/…>",
-                       "comment": "<one‑line note on why the paper is cited>" }},
-                    ...
-                ]
-            }},
-            ...
-        ]
-    }},
-    ...
-]
+{{
+    "reasoning": "<Step-by-step explanation of how you selected the structure, papers, and citations for the plan.>",
+    "plan": [
+        {{
+            "number": <int>,
+            "title": "<section title>",
+            "outline": "<A couple sentence explanation of the section's role in the review, what does it present, and why.>",
+            "key_points": [
+                {{
+                    "text": "<A couple of senetcnes describing the meaning and relevance of the point that is beging made.>",
+                    "papers": [
+                        {{ 
+                            "title": "<paper title>",
+                            "year": <int>,
+                            "url":   "<https://arxiv.org/abs/…>",
+                            "summary": "<A brief summary of the paper.>" 
+                            "citation_reason": "<A short explanation why this exact paper was selected for the respective point and section.>" 
+                        }},
+                        ...
+                    ]
+                }},
+                ...
+            ]
+        }},
+        ...
+    ]
+}}
 
 Ensure all braces/brackets are balanced and **NO trailing commas** appear.  
 Return **only** the JSON – nothing else.

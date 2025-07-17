@@ -4,7 +4,7 @@ from langchain_core.documents import Document
 from langchain_core.runnables import RunnableConfig
 from langchain_core.messages import HumanMessage, AIMessage, ToolMessage
 
-from literature_review_agent.state import LitState, Section
+from literature_review_agent.state import LitState, Plan
 from literature_review_agent.utils import get_text_llm, get_orchestrator_llm
 from literature_review_agent.configuration import Configuration  
 from literature_review_agent.tools import arxiv_search, summarise_text
@@ -84,17 +84,7 @@ async def plan_review(state: LitState, *, config: Optional[RunnableConfig] = Non
 
             if call["name"] == "arxiv_search":
                 papers = await tool.ainvoke(call["args"])
-
-                slim_papers = [
-                    {
-                        "title": p["title"],
-                        "url":   p["url"],
-                        "comment": p["summary"],
-                    }
-                    for p in papers
-                ]
-
-                result_for_history = slim_papers
+                result_for_history = papers
 
             else:
                 result_for_history = await tool.ainvoke(call["args"])
@@ -108,7 +98,7 @@ async def plan_review(state: LitState, *, config: Optional[RunnableConfig] = Non
             )
 
     text = re.sub(r"^```[\w-]*\n|\n```$", "", messages[-1].content.strip(), flags=re.S)
-    plan: List[Section] = json.loads(text)
+    plan: Plan = json.loads(text)
 
     return {
         "plan": plan,
@@ -117,7 +107,7 @@ async def plan_review(state: LitState, *, config: Optional[RunnableConfig] = Non
 
 def refine_section(state: LitState) -> dict:
     """Draft the first section (placeholder logic)."""
-    first_title = state["plan"].splitlines()[0]   # crude; adjust when outline is JSON
+    first_title = state["plan"].splitlines()[0]
     prompt = (
         f"Write a clear, 2-3 sentence draft for the section: '{first_title}'. "
         "Assume the target reader is a grad student."
