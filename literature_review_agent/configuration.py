@@ -9,34 +9,60 @@ import os
 class Configuration:
     """The configuration for the agent."""
 
+    # MODELS
+
+    openai_api_key: Optional[str] = field(
+        default_factory=lambda: os.getenv("OPENAI_API_KEY")
+    )
+
     orchestrator_model: Annotated[str, {"__template_metadata__": {"kind": "llm"}}] = field(
-        default="o3-mini-2025-01-31",
+        default="o3",
         metadata={"description": "The model planning the literature review process."},
     )
 
     text_model: Annotated[str, {"__template_metadata__": {"kind": "llm"}}] = field(
-        default="gpt-4o-mini",
+        default="gpt-4.1-2025-04-14",
         metadata={"description": "OpenAI model name, e.g. 'gpt-4o-mini'."},
+    )
+
+
+    # PROMPTS
+
+    query_refinement_prompt: str = field(
+        default=prompts.PREPARE_SEARCH_QUERIES_PROMPT,
+        metadata={
+            "description": "The prompt template to use for the agent's search query refinement phase. "
+            "Expects two f-string arguments: {query_count} and {topic}."
+        },
     )
 
     research_prompt: str = field(
         default=prompts.PLAN_PROMPT,
         metadata={
             "description": "The prompt template to use for the agent's literature review planning phase. "
-            "Expects two f-string arguments: {topic} and {paper_recency}."
+            "Expects three f-string arguments: {topic}, {paper_recency}, and {search_queries}."
+        },
+    )
+
+
+    # NUMERIC
+
+    refined_query_count: int = field(
+        default=15,
+        metadata={
+            "description": "The number of queries to prepare in the query refinement stage."
         },
     )
 
     max_search_results: int = field(
-        default=10,
+        default=35,
         metadata={
             "description": "The maximum number of search results to return for each search query."
         },
     )
 
-    openai_api_key: Optional[str] = field(
-        default_factory=lambda: os.getenv("OPENAI_API_KEY")
-    )
+
+    # HELPERS
 
     @classmethod
     def from_runnable_config(

@@ -7,7 +7,7 @@ from langgraph.prebuilt import InjectedState
 
 from literature_review_agent.configuration import Configuration
 from literature_review_agent.state import LitState
-from literature_review_agent.utils import get_llm
+from literature_review_agent.utils import get_text_llm
 
 from typing import Any, Optional, cast, List, Dict
 from typing_extensions import Annotated
@@ -57,7 +57,7 @@ async def summarise_text(
     """
     Return a 1-sentence summary of *text*.
     """
-    llm = get_llm(Configuration.from_runnable_config(config))
+    llm = get_text_llm(Configuration.from_runnable_config(config))
     prompt = f"Summarise in one sentence:\n\n{text}"
     return (await llm.ainvoke(prompt)).content.strip()
 

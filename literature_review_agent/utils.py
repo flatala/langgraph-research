@@ -19,7 +19,7 @@ def get_orchestrator_llm(cfg: Configuration) -> ChatOpenAI:
         streaming=True,
     )
 
-def get_llm(cfg: Configuration) -> ChatOpenAI:
+def get_text_llm(cfg: Configuration) -> ChatOpenAI:
     return ChatOpenAI(
         model=cfg.text_model,
         api_key=cfg.openai_api_key,

@@ -1,4 +1,5 @@
 from literature_review_agent.graph import graph
+from literature_review_agent.state import LitState
 from pathlib import Path
 from dotenv import load_dotenv
 from pprint import pprint
@@ -11,15 +12,20 @@ if __name__ == "__main__":
         override=False,         
     )    
 
-    init_state = {
-        "messages": [],
-        "topic": "Zero and Few-Shot based autoamtic propaganda detection",
-        "paper_recency": "after 2023",
-        "plan": [],
-        "info": [],
-        "draft_sections": [],
-        "verified_sections": [],
-    }
+    init_state = LitState(               
+        messages=[],
+        info=None,                       
+        topic="Personalisation and conditional alignment of LLMs.",
+        paper_recency="after 2023",
+        search_queries=[],
+        plan=[],
+        draft_sections=[],
+        verified_sections=[],
+    )
 
-    result = asyncio.run(graph.ainvoke(init_state))
-    pprint(result['plan'])
+    result_dict = asyncio.run(graph.ainvoke(init_state))
+    final_state = LitState(**result_dict)
+
+
+    final_state.print_messages()
+    final_state.print_plan()
