@@ -3,9 +3,13 @@ from langgraph.prebuilt import chat_agent_executor, ToolNode, tools_condition
 from langchain_core.documents import Document
 from langchain_core.runnables import RunnableConfig
 from langchain_core.messages import HumanMessage, AIMessage, ToolMessage
+from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain_openai import OpenAIEmbeddings
+from langchain_community.document_loaders import ArxivLoader
+from langchain_community.vectorstores import FAISS
 
 from literature_review_agent.state import LitState, Plan
-from literature_review_agent.utils import get_text_llm, get_orchestrator_llm
+from literature_review_agent.utils import get_text_llm, get_orchestrator_llm, reduce_docs
 from literature_review_agent.configuration import Configuration  
 from literature_review_agent.tools import arxiv_search, summarise_text
 
@@ -97,36 +101,59 @@ async def plan_review(state: LitState, *, config: Optional[RunnableConfig] = Non
                 )
             )
 
-    text = re.sub(r"^```[\w-]*\n|\n```$", "", messages[-1].content.strip(), flags=re.S)
-    plan: Plan = json.loads(text)
+    # text = re.sub(r"^```[\w-]*\n|\n```$", "", messages[-1].content.strip(), flags=re.S)
+    plan: Plan = json.loads(messages[-1].content.strip())
 
     return {
         "plan": plan,
         "messages": messages,
     }
 
-def refine_section(state: LitState) -> dict:
-    """Draft the first section (placeholder logic)."""
-    first_title = state["plan"].splitlines()[0]
-    prompt = (
-        f"Write a clear, 2-3 sentence draft for the section: '{first_title}'. "
-        "Assume the target reader is a grad student."
-    )
-    llm = get_llm()    
-    draft = llm.invoke(prompt).content
-    return {"draft_sections": [draft]}
 
-def verify_section(state: LitState) -> dict:
-    """Light-weight factuality pass—returns the text unchanged if it looks fine."""
-    draft = state["draft_sections"][0]
-    prompt = (
-        "Check the following paragraph for factual consistency. "
-        "If it is correct, return it unchanged; otherwise, return a corrected version.\n\n"
-        f"{draft}"
-    )
-    llm = get_llm()    
-    verified = llm.invoke(prompt).content
-    return {"verified_sections": [verified]}
+async def prepare_rag_knowledge_base(state: LitState, *, config=None) -> dict:
+    import re
+
+    # 1. Collect all unique arXiv URLs from the plan
+    arxiv_urls = set()
+    for section in state.plan["plan"]:
+        for kp in section["key_points"]:
+            for paper in kp["papers"]:
+                url = paper.get("url", "")
+                if url and "arxiv.org" in url:
+                    # Remove version suffix (e.g., v1, v2) for clean querying
+                    url = re.sub(r'v\d+$', '', url)
+                    arxiv_urls.add(url)
+
+    # 2. Download all full-text PDFs
+    docs = []
+    for url in arxiv_urls:
+        arxiv_id = url.split("/")[-1]
+        try:
+            loader = ArxivLoader(query=arxiv_id, load_max_docs=1, load_full_text=True)
+            docs.extend(loader.load())
+        except Exception as e:
+            print(f"Failed to load {url}: {e}")
+
+    # 3. Chunk the docs
+    splitter = RecursiveCharacterTextSplitter(chunk_size=1200, chunk_overlap=200)
+    split_docs = splitter.split_documents(docs)
+
+    # 4. Embed and index (batching because of the total size)
+    embeddings = OpenAIEmbeddings()
+    max_chunks_per_batch = 250
+    db = None
+    for i in range(0, len(split_docs), max_chunks_per_batch):
+        batch = split_docs[i:i + max_chunks_per_batch]
+        if db is None:
+            db = FAISS.from_documents(batch, embeddings)
+        else:
+            db.add_documents(batch)
+
+    return {
+        "retriever": db.as_retriever(),
+        "documents": reduce_docs(state.documents, split_docs),
+        "messages": state.messages,
+    }
 
 
 builder = StateGraph(LitState)
@@ -135,14 +162,48 @@ tools_node = ToolNode([arxiv_search])
 builder.add_node("prepare_search_queries", prepare_search_queries) 
 builder.add_node("plan_literature_review", plan_review)
 builder.add_node("tools", tools_node)
+builder.add_node("prepare_rag_knowledge_base", prepare_rag_knowledge_base)
 
 builder.add_edge(START, "prepare_search_queries")
 builder.add_edge("prepare_search_queries", "plan_literature_review")
 builder.add_conditional_edges(
     "plan_literature_review",
     tools_condition,              
-    {"tools": "tools", "__end__": END}
+    {"tools": "tools", "__end__": "prepare_rag_knowledge_base"}
 )
 builder.add_edge("tools", "plan_literature_review")
+builder.add_edge("prepare_rag_knowledge_base", END)
 
 graph = builder.compile()
+
+
+
+# def refine_section(state: LitState) -> dict:
+#     """Draft the first section (placeholder logic)."""
+#     first_title = state["plan"].splitlines()[0]
+#     prompt = (
+#         f"Write a clear, 2-3 sentence draft for the section: '{first_title}'. "
+#         "Assume the target reader is a grad student."
+#     )
+#     llm = get_text_llm()    
+#     draft = llm.invoke(prompt).content
+#     return {"draft_sections": [draft]}
+
+
+# def verify_section(state: LitState) -> dict:
+#     """Light-weight factuality pass—returns the text unchanged if it looks fine."""
+#     draft = state["draft_sections"][0]
+#     prompt = (
+#         "Check the following paragraph for factual consistency. "
+#         "If it is correct, return it unchanged; otherwise, return a corrected version.\n\n"
+#         f"{draft}"
+#     )
+#     llm = get_text_llm()    
+#     verified = llm.invoke(prompt).content
+#     return {"verified_sections": [verified]}
+
+
+# def get_context_for_section(section, retriever, k=8):
+#     query = section['outline'] + "\n" + " ".join([kp["text"] for kp in section["key_points"]])
+#     docs = retriever.get_relevant_documents(query)  # or .similarity_search(query, k=k)
+#     return "\n".join([doc.page_content for doc in docs])

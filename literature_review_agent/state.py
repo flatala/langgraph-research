@@ -1,9 +1,10 @@
 from typing_extensions import TypedDict, Annotated, Optional, Any, List
 from textwrap import indent
+from dataclasses import dataclass, field
+
 from langchain_core.documents import Document
 from langchain_core.messages import HumanMessage, AIMessage, ToolMessage
-from dataclasses import dataclass, field
-from literature_review_agent.utils import reduce_docs
+
 import json
 
 class PaperRef(TypedDict):
@@ -30,8 +31,9 @@ class Plan(TypedDict):
 @dataclass(kw_only=True)
 class LitState:
     messages: list
-    info: Optional[dict[str, Any]] = field(default=None)
-    # documents: Annotated[list[Document], reduce_docs] = field(default_factory=list)
+    
+    retriever: Optional[Any] = field(default=None)
+    documents: Optional[List[Document]] = field(default=None)
 
     topic: str
     paper_recency: str   

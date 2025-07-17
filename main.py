@@ -14,7 +14,8 @@ if __name__ == "__main__":
 
     init_state = LitState(               
         messages=[],
-        info=None,                       
+        documents=None,
+        retriever=None,                     
         topic="Personalisation and conditional alignment of LLMs.",
         paper_recency="after 2023",
         search_queries=[],
