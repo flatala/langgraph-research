@@ -163,8 +163,7 @@ async def prepare_rag_knowledge_base(state: LitState, *, config=None) -> dict:
 
     return {
         "retriever": db.as_retriever(),
-        "documents": reduce_docs(state.get("documents"), split_docs),
-        "messages": state.messages,
+        "documents": reduce_docs(state.get("documents"), split_docs)
     }
 
 workflow = StateGraph(LitState)
