@@ -1,4 +1,5 @@
 from literature_review_agent.graph import graph
+from langchain_core.runnables import RunnableConfig
 from literature_review_agent.state import LitState
 from pathlib import Path
 from dotenv import load_dotenv
@@ -24,7 +25,8 @@ if __name__ == "__main__":
         verified_sections=[],
     )
 
-    result_dict = asyncio.run(graph.ainvoke(init_state))
+    config = RunnableConfig(recursion_limit=50)
+    result_dict = asyncio.run(graph.ainvoke(init_state, config))
     final_state = LitState(**result_dict)
 
     # final_state.print_messages()

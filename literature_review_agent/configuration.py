@@ -25,7 +25,6 @@ class Configuration:
         metadata={"description": "OpenAI model name, e.g. 'gpt-4o-mini'."},
     )
 
-
     # PROMPTS
 
     query_refinement_prompt: str = field(

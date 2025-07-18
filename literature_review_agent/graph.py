@@ -1,8 +1,6 @@
 from langgraph.graph import StateGraph, START, END
-from langgraph.prebuilt import chat_agent_executor, ToolNode, tools_condition
-from langchain_core.documents import Document
 from langchain_core.runnables import RunnableConfig
-from langchain_core.messages import HumanMessage, AIMessage, ToolMessage
+from langchain_core.messages import HumanMessage, AIMessage
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_openai import OpenAIEmbeddings
 from langchain_community.document_loaders import ArxivLoader
@@ -10,13 +8,11 @@ from langchain_community.vectorstores import FAISS
 
 from literature_review_agent.state import LitState, Plan
 from literature_review_agent.utils import get_text_llm, get_orchestrator_llm, reduce_docs
+from literature_review_agent.custom_nodes import AsyncToolNode
 from literature_review_agent.configuration import Configuration  
 from literature_review_agent.tools import arxiv_search, summarise_text
 
 from typing import List, Optional
-from typing_extensions import TypedDict, Annotated
-from dataclasses import field
-from pprint import pprint
 import json, re
 
 
@@ -25,7 +21,7 @@ async def prepare_search_queries(state: LitState, *, config: Optional[RunnableCo
 
     prompt = cfg.query_refinement_prompt.format(
         query_count=cfg.refined_query_count,
-        topic=state.topic,
+        topic=state.get("topic"),
     )
 
     llm = (
@@ -33,7 +29,7 @@ async def prepare_search_queries(state: LitState, *, config: Optional[RunnableCo
         .with_config({"response_format": {"type": "json_object"}})
     )
 
-    messages = state.messages.copy()
+    messages = state.get("messages").copy()
     messages.append(HumanMessage(content=prompt))
 
     ai_msg: AIMessage = await llm.ainvoke(messages)
@@ -48,79 +44,93 @@ async def prepare_search_queries(state: LitState, *, config: Optional[RunnableCo
     else:
         raise ValueError("Unexpected JSON structure returned by LLM")
 
+    print("Refined search queries.\n")
+
     return {
         "search_queries": queries,
         "messages": messages,
     }
 
 
-async def plan_review(state: LitState, *, config: Optional[RunnableConfig] = None) -> dict:
+def send_plan_prompt(state: LitState, *, config=None):
     cfg = Configuration.from_runnable_config(config)
 
-    queries_str = "; ".join(state.search_queries)
+    queries_str = "; ".join(state["search_queries"])
     prompt = cfg.research_prompt.format(
-        topic=state.topic,
-        paper_recency=state.paper_recency,
-        search_queries=queries_str
+        topic=state["topic"],
+        paper_recency=state["paper_recency"],
+        search_queries=queries_str,
     )
 
-    tools = [arxiv_search]
+    messages = state["messages"].copy()
+    messages.append(HumanMessage(content=prompt))
+
+    print("Appended instruction prompt.\n")
+
+    return {"messages": messages}
+
+
+async def plan_literature_review(state: LitState, *, config=None):
+    cfg = Configuration.from_runnable_config(config)
+
     llm = (
         get_orchestrator_llm(cfg=cfg)
-        .bind_tools(tools, tool_choice="auto")
+        .bind_tools([arxiv_search])
         .with_config({"response_format": {"type": "json_object"}})
     )
 
-    tool_map = {t.name: t for t in tools}
+    messages = state["messages"]
+    ai_msg = await llm.ainvoke(messages)
 
-    messages = state.messages.copy()  
-    messages.append(HumanMessage(content=prompt))
+    print("Executed a planning step.\n")
 
-    while True:
-        ai_msg: AIMessage = await llm.ainvoke(messages)
-        messages.append(ai_msg)
+    return {"messages": messages + [ai_msg]}
 
-        if not ai_msg.tool_calls:         
-            break
+    
+def route_tools(state: LitState, *, config: Optional[RunnableConfig] = None) -> dict:
+    """
+    Use in the conditional_edge to route to the ToolNode if the last message
+    has tool calls. Otherwise, route to the end.
+    """
 
-        for call in ai_msg.tool_calls:
-            tool = tool_map[call["name"]]
+    print("Checking for tool calls...\n")
 
-            if call["name"] == "arxiv_search":
-                papers = await tool.ainvoke(call["args"])
-                result_for_history = papers
+    if isinstance(state, list):
+        ai_message = state[-1]
+    elif messages := state.get("messages", []):
+        ai_message = messages[-1]
+    else:
+        raise ValueError(f"No messages found in input state to tool_edge: {state}")
+    if hasattr(ai_message, "tool_calls") and len(ai_message.tool_calls) > 0:
+        return "tools"
+    return END
 
-            else:
-                result_for_history = await tool.ainvoke(call["args"])
 
-            messages.append(
-                ToolMessage(
-                    name=call["name"],
-                    tool_call_id=call["id"],
-                    content=json.dumps(result_for_history)
-                )
-            )
+async def parse_plan(state: LitState, *, config: Optional[RunnableConfig] = None) -> dict:
+    """Process the plan to extract key points and papers."""
 
-    # text = re.sub(r"^```[\w-]*\n|\n```$", "", messages[-1].content.strip(), flags=re.S)
-    plan: Plan = json.loads(messages[-1].content.strip())
+    last_message: AIMessage = state.get("messages")[-1]
+    plan: Plan = json.loads(last_message.content.strip())
+
+    print("Litarture survey plan extracted from LLM response.\n")
 
     return {
         "plan": plan,
-        "messages": messages,
     }
 
 
 async def prepare_rag_knowledge_base(state: LitState, *, config=None) -> dict:
-    import re
+    print("Preparing the RAG setup...")
 
     # 1. Collect all unique arXiv URLs from the plan
     arxiv_urls = set()
-    for section in state.plan["plan"]:
+    plan_dict: Plan = state.get("plan", {})
+    for section in plan_dict.get("plan", []): 
         for kp in section["key_points"]:
             for paper in kp["papers"]:
-                url = paper.get("url", "")
+                url = paper.get("url")
                 if url and "arxiv.org" in url:
-                    # Remove version suffix (e.g., v1, v2) for clean querying
+                    # Removing version suffix (e.g., v1, v2) for clean querying
                     url = re.sub(r'v\d+$', '', url)
                     arxiv_urls.add(url)
 
@@ -149,34 +159,37 @@ async def prepare_rag_knowledge_base(state: LitState, *, config=None) -> dict:
         else:
             db.add_documents(batch)
 
+    print("Rag setup ready...\n")
+
     return {
         "retriever": db.as_retriever(),
-        "documents": reduce_docs(state.documents, split_docs),
+        "documents": reduce_docs(state.get("documents"), split_docs),
         "messages": state.messages,
     }
 
+workflow = StateGraph(LitState)
 
-builder = StateGraph(LitState)
-tools_node = ToolNode([arxiv_search])
+workflow.add_node("prepare_search_queries", prepare_search_queries)
+workflow.add_node("send_plan_prompt", send_plan_prompt)
+workflow.add_node("plan_literature_review", plan_literature_review)
+workflow.add_node("tools", AsyncToolNode([arxiv_search]))
+workflow.add_node("parse_plan", parse_plan)
+workflow.add_node("prepare_rag_knowledge_base", prepare_rag_knowledge_base)
 
-builder.add_node("prepare_search_queries", prepare_search_queries) 
-builder.add_node("plan_literature_review", plan_review)
-builder.add_node("tools", tools_node)
-builder.add_node("prepare_rag_knowledge_base", prepare_rag_knowledge_base)
+workflow.add_edge(START, "prepare_search_queries")
+workflow.add_edge("prepare_search_queries", "send_plan_prompt")
+workflow.add_edge("send_plan_prompt", "plan_literature_review")
 
-builder.add_edge(START, "prepare_search_queries")
-builder.add_edge("prepare_search_queries", "plan_literature_review")
-builder.add_conditional_edges(
+workflow.add_conditional_edges(
     "plan_literature_review",
-    tools_condition,              
-    {"tools": "tools", "__end__": "prepare_rag_knowledge_base"}
+    route_tools,
+    {"tools": "tools", "__end__": "parse_plan"},
 )
-builder.add_edge("tools", "plan_literature_review")
-builder.add_edge("prepare_rag_knowledge_base", END)
+workflow.add_edge("tools", "plan_literature_review")
+workflow.add_edge("parse_plan", "prepare_rag_knowledge_base")
+workflow.add_edge("prepare_rag_knowledge_base", END)
 
-graph = builder.compile()
-
-
+graph = workflow.compile()
 
 # def refine_section(state: LitState) -> dict:
 #     """Draft the first section (placeholder logic)."""

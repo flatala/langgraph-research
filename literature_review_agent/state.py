@@ -29,7 +29,7 @@ class Plan(TypedDict):
     reasoning: str
 
 @dataclass(kw_only=True)
-class LitState:
+class LitState(TypedDict):
     messages: list
     
     retriever: Optional[Any] = field(default=None)
