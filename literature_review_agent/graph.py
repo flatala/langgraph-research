@@ -6,14 +6,45 @@ from langchain_openai import OpenAIEmbeddings
 from langchain_community.document_loaders import ArxivLoader
 from langchain_community.vectorstores import FAISS
 
-from literature_review_agent.state import LitState, Plan
+from literature_review_agent.state import LitState, Plan, CachingOptions
 from literature_review_agent.utils import get_text_llm, get_orchestrator_llm, reduce_docs
 from literature_review_agent.custom_nodes import AsyncToolNode
 from literature_review_agent.configuration import Configuration  
 from literature_review_agent.tools import arxiv_search, summarise_text
 
 from typing import List, Optional
+from datetime import datetime
+from pathlib import Path
 import json, re
+import hashlib
+
+
+PLAN_CACHE_PATH = 'cache/plans/'
+
+# handling of caching the stages
+
+async def decide_on_start_stage(state: LitState, *, config: Optional[RunnableConfig] = None) -> dict:
+    if state["caching_options"] is not None and state["caching_options"]["cached_plan_id"] is not None:
+        print("Using cached plan...\n")
+        return "load_cached_plan"
+    else:
+        print("Starting from scratch...\n")
+        return "prepare_search_queries"
+
+async def load_cached_plan(state: LitState, *, config: Optional[RunnableConfig] = None) -> dict:
+    caching_options: CachingOptions = state.get("caching_options")
+    if caching_options and caching_options.get("cached_plan_id"):
+        plan_id = caching_options["cached_plan_id"]
+        plan_path = Path(PLAN_CACHE_PATH) / f"{plan_id}.json"
+        with open(plan_path, "r") as f:
+            plan: Plan  = json.load(f)
+            print(f"Loaded cached plan with id {plan_id}.\n")
+            return { "plan": plan }
+    else:
+        raise ValueError("No cached plan ID provided in state.")
+
+
+# Actualworkflow starts here
 
 
 async def prepare_search_queries(state: LitState, *, config: Optional[RunnableConfig] = None) -> dict:
@@ -111,8 +142,25 @@ async def parse_plan(state: LitState, *, config: Optional[RunnableConfig] = None
 
     last_message: AIMessage = state.get("messages")[-1]
     plan: Plan = json.loads(last_message.content.strip())
-
     print("Litarture survey plan extracted from LLM response.\n")
+
+    # prepare cache key
+    topic = state.get("topic")
+    now = datetime.now()
+    to_hash = f"{topic}_{now.strftime('%Y%m%d_%H%M%S')}"
+    md5_hex = hashlib.md5(to_hash.encode()).hexdigest()
+    parts = [md5_hex[i:i+8] for i in range(0, 32, 8)]
+    final_id = '-'.join(parts)
+
+    # ensure that the directory exists
+    plan_path = Path(PLAN_CACHE_PATH) / f"{final_id}.json"
+    plan_path.parent.mkdir(parents=True, exist_ok=True)
+
+    # write json
+    with open(plan_path, "w") as f:
+        json.dump(plan, f, indent=4)
+
+    print(f"Saved plan with id {hash} at {plan_path}.\n")
 
     return {
         "plan": plan,
@@ -168,6 +216,7 @@ async def prepare_rag_knowledge_base(state: LitState, *, config=None) -> dict:
 
 workflow = StateGraph(LitState)
 
+workflow.add_node("load_cached_plan", load_cached_plan)
 workflow.add_node("prepare_search_queries", prepare_search_queries)
 workflow.add_node("send_plan_prompt", send_plan_prompt)
 workflow.add_node("plan_literature_review", plan_literature_review)
@@ -175,16 +224,29 @@ workflow.add_node("tools", AsyncToolNode([arxiv_search]))
 workflow.add_node("parse_plan", parse_plan)
 workflow.add_node("prepare_rag_knowledge_base", prepare_rag_knowledge_base)
 
-workflow.add_edge(START, "prepare_search_queries")
+# first decide on the initial starting stage
+workflow.add_conditional_edges(
+    START,
+    decide_on_start_stage,
+    {"load_cached_plan": "load_cached_plan", "prepare_search_queries": "prepare_search_queries"},
+)
+
+# if a cached plan is loaded, go directly to rag setup
+workflow.add_edge("load_cached_plan", "prepare_rag_knowledge_base")
+
+# refien search queries and send the system prompt
 workflow.add_edge("prepare_search_queries", "send_plan_prompt")
 workflow.add_edge("send_plan_prompt", "plan_literature_review")
 
+# loop between tool calls and ai model refinement
 workflow.add_conditional_edges(
     "plan_literature_review",
     route_tools,
     {"tools": "tools", "__end__": "parse_plan"},
 )
 workflow.add_edge("tools", "plan_literature_review")
+
+# parse the plan, save json, setup rag
 workflow.add_edge("parse_plan", "prepare_rag_knowledge_base")
 workflow.add_edge("prepare_rag_knowledge_base", END)
 
