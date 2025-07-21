@@ -4,6 +4,7 @@ from langchain_core.runnables import RunnableConfig
 from langchain_core.tools import InjectedToolArg
 from langchain_core.tools import tool
 from langgraph.prebuilt import InjectedState
+from langgraph.types import Command, interrupt
 
 from literature_review_agent.configuration import Configuration
 from literature_review_agent.state import LitState
@@ -46,6 +47,14 @@ async def arxiv_search(
             }
         )
     return results
+
+
+@tool
+def human_assistance(query: str) -> str:
+    """Request assistance from a human."""
+    human_response = interrupt({"query": query})
+    return human_response["data"]
+
 
 @tool("summarise_text")
 async def summarise_text(

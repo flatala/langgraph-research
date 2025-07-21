@@ -1,10 +1,10 @@
 from langchain_core.runnables import RunnableConfig
-from langchain_core.messages import HumanMessage, AIMessage
+from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
 
 from literature_review_agent.state import LitState, Plan, CachingOptions
 from literature_review_agent.utils import get_text_llm, get_orchestrator_llm
 from literature_review_agent.configuration import Configuration  
-from literature_review_agent.tools import arxiv_search
+from literature_review_agent.tools import arxiv_search, human_assistance
 
 from typing import List, Optional
 from datetime import datetime
@@ -22,10 +22,10 @@ async def decide_on_start_stage(state: LitState, *, config: Optional[RunnableCon
         return "load_cached_plan"
     else:
         print("Starting from scratch...\n")
-        return "prepare_search_queries"
+        return "refine_problem_statement"
 
-
-async def prepare_search_queries(state: LitState, *, config: Optional[RunnableConfig] = None) -> dict:
+# include system prompt + human prompt and use both
+def append_system_prompt(state: LitState, *, config=None):
     cfg = Configuration.from_runnable_config(config)
 
     prompt = cfg.query_refinement_prompt.format(
@@ -33,35 +33,35 @@ async def prepare_search_queries(state: LitState, *, config: Optional[RunnableCo
         topic=state.get("topic"),
     )
 
+    messages = state["messages"]
+    new_msg = HumanMessage(content=prompt)
+
+    print("Appended problem statement refinement prompt.\n")
+
+    return {"messages": messages + [new_msg]}
+
+
+async def refine_problem_statement(state: LitState, *, config: Optional[RunnableConfig] = None) -> dict:
+    cfg = Configuration.from_runnable_config(config)
     llm = (
         get_text_llm(cfg=cfg)
+        .bind_tools([human_assistance])
         .with_config({"response_format": {"type": "json_object"}})
     )
 
     messages = state.get("messages").copy()
-    messages.append(HumanMessage(content=prompt))
-
     ai_msg: AIMessage = await llm.ainvoke(messages)
-    messages.append(ai_msg)
-
-    raw = re.sub(r"^```[\w-]*\n|\n```$", "", ai_msg.content.strip(), flags=re.S)
-    data = json.loads(raw)
-    if isinstance(data, dict) and "queries" in data:
-        queries: List[str] = data["queries"]
-    elif isinstance(data, list):
-        queries = data
-    else:
-        raise ValueError("Unexpected JSON structure returned by LLM")
-
-    print("Refined search queries.\n")
 
     return {
-        "search_queries": queries,
-        "messages": messages,
+        # "search_queries": queries,
+        "messages": messages + [ai_msg],
     }
 
 
-def send_plan_prompt(state: LitState, *, config=None):
+async def parse_queries_add_plan_prompt(state: LitState, *, config: Optional[RunnableConfig] = None) -> dict:
+    last_message: AIMessage = state.get("messages")[-1]
+    queries: List[str] = json.loads(last_message.content.strip())
+
     cfg = Configuration.from_runnable_config(config)
 
     queries_str = "; ".join(state["search_queries"])
@@ -71,12 +71,95 @@ def send_plan_prompt(state: LitState, *, config=None):
         search_queries=queries_str,
     )
 
-    messages = state["messages"].copy()
-    messages.append(HumanMessage(content=prompt))
+    messages = state["messages"]
+    new_msg = HumanMessage(content=prompt)
 
-    print("Appended instruction prompt.\n")
+    return {
+        "messages": messages + [new_msg],
+        "search_queries": queries,
+    }
 
-    return {"messages": messages}
+
+
+# # TODO: maybe combien this with query refinement and 
+# # add somr human-in-the -loop call for extra questions
+# def send_plan_prompt(state: LitState, *, config=None):
+#     cfg = Configuration.from_runnable_config(config)
+
+#     queries_str = "; ".join(state["search_queries"])
+#     prompt = cfg.research_prompt.format(
+#         topic=state["topic"],
+#         paper_recency=state["paper_recency"],
+#         search_queries=queries_str,
+#     )
+
+#     messages = state["messages"]
+#     new_msg = HumanMessage(content=prompt)
+
+#     print("Appended instruction prompt.\n")
+
+#     return {"messages": messages + [new_msg]}
+
+
+
+
+
+
+
+# async def prepare_search_queries(state: LitState, *, config: Optional[RunnableConfig] = None) -> dict:
+#     cfg = Configuration.from_runnable_config(config)
+
+#     prompt = cfg.query_refinement_prompt.format(
+#         query_count=cfg.refined_query_count,
+#         topic=state.get("topic"),
+#     )
+
+#     llm = (
+#         get_text_llm(cfg=cfg)
+#         .with_config({"response_format": {"type": "json_object"}})
+#     )
+
+#     messages = state.get("messages").copy()
+#     messages.append(HumanMessage(content=prompt))
+
+#     ai_msg: AIMessage = await llm.ainvoke(messages)
+#     messages.append(ai_msg)
+
+#     raw = re.sub(r"^```[\w-]*\n|\n```$", "", ai_msg.content.strip(), flags=re.S)
+#     data = json.loads(raw)
+#     if isinstance(data, dict) and "queries" in data:
+#         queries: List[str] = data["queries"]
+#     elif isinstance(data, list):
+#         queries = data
+#     else:
+#         raise ValueError("Unexpected JSON structure returned by LLM")
+
+#     print("Refined search queries.\n")
+
+#     return {
+#         "search_queries": queries,
+#         "messages": messages,
+#     }
+
+# # TODO: maybe combien this with query refinement and 
+# # add somr human-in-the -loop call for extra questions
+# def send_plan_prompt(state: LitState, *, config=None):
+#     cfg = Configuration.from_runnable_config(config)
+
+#     queries_str = "; ".join(state["search_queries"])
+#     prompt = cfg.research_prompt.format(
+#         topic=state["topic"],
+#         paper_recency=state["paper_recency"],
+#         search_queries=queries_str,
+#     )
+
+#     messages = state["messages"].copy()
+#     messages.append(HumanMessage(content=prompt))
+
+#     print("Appended instruction prompt.\n")
+
+#     return {"messages": messages}
+
 
 
 async def plan_literature_review(state: LitState, *, config=None):

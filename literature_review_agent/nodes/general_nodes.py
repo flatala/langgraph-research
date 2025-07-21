@@ -48,3 +48,9 @@ def route_tools(state: LitState, *, config: Optional[RunnableConfig] = None) -> 
     if hasattr(ai_message, "tool_calls") and len(ai_message.tool_calls) > 0:
         return "tools"
     return END
+
+
+def set_workflow_completed_flag(state: LitState, *, config: Optional[RunnableConfig] = None) -> dict:
+    return {
+        "completed": True
+    }

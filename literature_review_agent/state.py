@@ -45,3 +45,5 @@ class LitState(TypedDict):
 
     draft_sections: List[str]          
     verified_sections: List[str]
+
+    completed: bool = field(default=False)
