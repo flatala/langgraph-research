@@ -4,7 +4,7 @@ from langchain_community.vectorstores import FAISS
 from langchain_openai import OpenAIEmbeddings
 
 from literature_review_agent.state import LitState, Plan
-from literature_review_agent.utils import reduce_docs
+from literature_review_agent.utils.document_utils import reduce_docs
 
 import re
 

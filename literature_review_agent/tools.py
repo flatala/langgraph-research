@@ -6,7 +6,7 @@ from langchain_core.tools import tool
 from langgraph.types import interrupt
 
 from literature_review_agent.configuration import Configuration
-from literature_review_agent.utils import get_text_llm
+from literature_review_agent.utils.llm_utils import get_text_llm
 
 from typing import List, Dict
 from typing_extensions import Annotated

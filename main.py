@@ -1,20 +1,15 @@
 from langchain_core.runnables import RunnableConfig
-from langchain_core.messages import ToolMessage
 from langgraph.types import Command
 
 from literature_review_agent.state import LitState, CachingOptions
-from literature_review_agent.utils import print_plan
+from literature_review_agent.utils.logging_utils import print_plan
 from literature_review_agent.graph import graph
 
-from IPython.display import Image, display
 from dotenv import load_dotenv
 from pathlib import Path
 
 import asyncio
 import uuid
-
-from literature_review_agent.state import LitState
-import asyncio
 
 
 async def run_workflow_async(init_state, graph, cfg):
@@ -25,7 +20,7 @@ async def run_workflow_async(init_state, graph, cfg):
         # if workflow is interrupted and expects human input, provide it
         if "__interrupt__" in result:
             print(result["__interrupt__"][0].value["query"] + '\n')
-            answer = await asyncio.get_event_loop().run_in_executor(None, input, "Please provide the answer:")
+            answer = await asyncio.get_event_loop().run_in_executor(None, input, "Please provide the answer: ")
             current_input = Command(resume={"data": answer})
             continue
 
@@ -44,11 +39,11 @@ if __name__ == "__main__":
     PAPER_RECENCY = 'after 2023'
 
     init_state = LitState( 
-        caching_options={
-            "cached_plan_id": '0988bc8d-095c95bb-dae967dd-7afcb319',
-            "cached_section_ids": None
-        },          
-        # caching_options=None,
+        # caching_options={
+        #     "cached_plan_id": '0988bc8d-095c95bb-dae967dd-7afcb319',
+        #     "cached_section_ids": None
+        # },          
+        caching_options=None,
         messages=[],
         documents=None,
         retriever=None,                     
