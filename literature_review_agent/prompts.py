@@ -8,11 +8,17 @@ Task
 Your task is to prepare a list of **{query_count}** search queries to be used on ArXiv to look for papers on the following topic: **{topic}**.
 
 ───────────────
-Guidlines
+Human Input
 ───────────────
-Please follow these guidliness:
+You have access to a tool that lets you ask the user (a human) for clarification or to refine the problem statement and the exact area of the literature survey.  
+- You may use this tool up to **2 times**, you have to use it **at least** one time.
+- Use it if you are uncertain about the topic or if clarification would help produce more effective queries.
+- Stop and generate the queries as soon as you have enough information.
 
-1. The prepared querries should be effective in searching a broad range of papers related to the topic, including both recent and foundational works.
+───────────────
+Guidelines
+───────────────
+1. The prepared queries should be effective in searching a broad range of papers related to the topic, including both recent and foundational works.
 2. Ensure that the queries are specific enough to yield relevant results, but broad enough to capture a wide range of literature.
 3. Ensure that the queries stay relevant and related to the topic.
 

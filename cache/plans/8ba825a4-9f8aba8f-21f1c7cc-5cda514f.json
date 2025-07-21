@@ -1,0 +1,258 @@
+{
+    "reasoning": "I first grouped the post-2023 arXiv papers returned by the search into thematic buckets: (1) general motivation/on-device needs (PLMM, LaMP); (2) multi-objective alignment and safety impetus (RiC, Exploring Safety-Utility); (3) parameter-efficient/federated fine-tuning (Personalized Soups, FedPGP, Profit); (4) prompt-level or decoding-time conditioning (Extroversion or Introversion, UBPL); (5) embedding- or weight-level personalization (CoRA, DPG, Orca); (6) novel alignment algorithms (Context-DPO, On-the-Loss, MCA, MO-ODPO); (7) evaluation datasets and protocols (PersoBench, PersonalityEvd, Profit, CatVersion); (8) emerging bias/ethics challenges (LLMs Biased Teachers, MirrorStories).  I then mapped these buckets to five logically ordered review sections and ensured that each section cites unique papers, only allowing two carefully justified duplicates which are central to both their original and later sections.  Each key point contains 2-3 primary papers with concise summaries and a clear reason for inclusion.  All papers retrieved by the searches that are relevant to personalization or conditional alignment are cited at least once.",
+    "plan": [
+        {
+            "number": 1,
+            "title": "Background and Motivation",
+            "outline": "Introduce why personalisation and conditional alignment have become critical in the LLM era, covering the move toward user-centric systems, on-device constraints, and the tension between global alignment and individual preferences.",
+            "key_points": [
+                {
+                    "text": "Growing demand for on-device, privacy-preserving personalised LLMs that adapt to user data without sacrificing latency.",
+                    "papers": [
+                        {
+                            "title": "PLMM: Personal Large Language Models on Mobile Devices",
+                            "year": 2024,
+                            "url": "https://arxiv.org/abs/2309.14726",
+                            "summary": "Proposes a three-tier architecture culminating in lightweight personal LLMs that run locally, protecting user data while delivering real-time responses.",
+                            "citation_reason": "Demonstrates the practical motivation for user-side personal models and the hardware-driven constraints they must satisfy."
+                        },
+                        {
+                            "title": "LaMP: When Large Language Models Meet Personalization",
+                            "year": 2024,
+                            "url": "https://arxiv.org/abs/2304.11406",
+                            "summary": "Introduces the LaMP benchmark and studies retrieval-augmented personalisation across seven tasks, showing substantial gains from user-profile conditioning.",
+                            "citation_reason": "Provides empirical evidence that personalised conditioning improves a broad set of language tasks."
+                        }
+                    ]
+                },
+                {
+                    "text": "Need to align to heterogeneous, sometimes conflicting user objectives while maintaining safety and utility.",
+                    "papers": [
+                        {
+                            "title": "Rewards-in-Context: Multi-objective Alignment of Foundation Models with Dynamic Preference Adjustment",
+                            "year": 2024,
+                            "url": "https://arxiv.org/abs/2402.10207",
+                            "summary": "Introduces prompt-level reward conditioning that lets a single model dynamically trade off multiple alignment objectives at inference time.",
+                            "citation_reason": "Frames conditional alignment as a multi-objective problem central to personalisation."
+                        },
+                        {
+                            "title": "Exploring Safety-Utility Trade-Offs in Personalized Language Models",
+                            "year": 2025,
+                            "url": "https://arxiv.org/abs/2406.11107",
+                            "summary": "Quantifies how personalisation can shift LLM safety and task performance across demographic identities, exposing bias and safety concerns.",
+                            "citation_reason": "Highlights real-world consequences of mis-aligned personalisation, motivating the remainder of the review."
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "number": 2,
+            "title": "Taxonomy of Personalisation Techniques",
+            "outline": "Organises the literature into coherent categories\u2014fine-tuning, prompt/decoding control, and embedding/weight adaptation\u2014providing a map for the survey.",
+            "key_points": [
+                {
+                    "text": "Parameter-efficient fine-tuning and post-hoc merging for user-level specialisation.",
+                    "papers": [
+                        {
+                            "title": "Personalized Soups: Personalized Large Language Model Alignment via Post-hoc Parameter Merging",
+                            "year": 2023,
+                            "url": "https://arxiv.org/abs/2310.11564",
+                            "summary": "Treats user preferences as separate objectives, trains expert heads individually, then merges parameters to obtain personalised models.",
+                            "citation_reason": "Represents the trend of lightweight, modular personalisation through weight interpolation."
+                        },
+                        {
+                            "title": "Harmonizing Generalization and Personalization in Federated Prompt Learning",
+                            "year": 2024,
+                            "url": "https://arxiv.org/abs/2405.09771",
+                            "summary": "Uses low-rank prompt adaptation with a prompt-wise contrastive loss to balance global knowledge and client-specific prompts in federated settings.",
+                            "citation_reason": "Shows how federated settings push new forms of parameter-efficient personalisation."
+                        }
+                    ]
+                },
+                {
+                    "text": "Prompt-based and decoding-time conditioning for personality or trait control.",
+                    "papers": [
+                        {
+                            "title": "Extroversion or Introversion? Controlling The Personality of Your Large Language Models",
+                            "year": 2024,
+                            "url": "https://arxiv.org/abs/2406.04583",
+                            "summary": "Compares prompt engineering, supervised fine-tuning, and RLHF for personality steering, proposing a hybrid PISF strategy for robust control.",
+                            "citation_reason": "Illustrates prompt-level personalisation and its robustness challenges."
+                        },
+                        {
+                            "title": "Tailoring Personality Traits in Large Language Models via Unsupervisedly-Built Personalized Lexicons",
+                            "year": 2024,
+                            "url": "https://arxiv.org/abs/2310.16582",
+                            "summary": "Uses unsupervised lexicons to adjust probability vectors during decoding, enabling fine-grained, plug-and-play personality manipulation.",
+                            "citation_reason": "Represents decoding-time control without retraining, fitting the prompt-conditioning bucket."
+                        }
+                    ]
+                },
+                {
+                    "text": "Embedding and weight-space personalisation for downstream tasks and role playing.",
+                    "papers": [
+                        {
+                            "title": "CoRA: Collaborative Information Perception by Large Language Model's Weights for Recommendation",
+                            "year": 2024,
+                            "url": "https://arxiv.org/abs/2408.10645",
+                            "summary": "Aligns collaborative filtering embeddings with LLM parameter space through low-rank weight injections, improving personalised recommendations.",
+                            "citation_reason": "Demonstrates weight-space conditioning using external user embeddings."
+                        },
+                        {
+                            "title": "Dynamic Generation of Personalities with Large Language Models",
+                            "year": 2024,
+                            "url": "https://arxiv.org/abs/2404.07084",
+                            "summary": "Employs hypernetworks trained on dialogue\u2013personality pairs to dynamically generate personality-conditioned weights during inference.",
+                            "citation_reason": "Shows runtime weight adaptation for finely grained persona generation."
+                        },
+                        {
+                            "title": "Orca: Enhancing Role-Playing Abilities of Large Language Models by Integrating Personality Traits",
+                            "year": 2024,
+                            "url": "https://arxiv.org/abs/2411.10006",
+                            "summary": "Proposes a four-stage pipeline to infer, augment, and condition LLMs on Big-Five personality traits for richer role-playing.",
+                            "citation_reason": "Extends embedding-level personalisation to complex multi-stage pipelines."
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "number": 3,
+            "title": "Technical Methods for Conditional Alignment",
+            "outline": "Delves into representative algorithms that operationalise personalisation and conditional objectives, contrasting optimisation paradigms and architectural choices.",
+            "key_points": [
+                {
+                    "text": "Direct preference optimisation for context-faithfulness.",
+                    "papers": [
+                        {
+                            "title": "Context-DPO: Aligning Language Models for Context-Faithfulness",
+                            "year": 2024,
+                            "url": "https://arxiv.org/abs/2412.15280",
+                            "summary": "Extends Direct Preference Optimisation to reward adherence to retrieved context, achieving large gains on the ConFiQA benchmark.",
+                            "citation_reason": "Exemplifies aligning responses to situational context, a key conditional alignment goal."
+                        },
+                        {
+                            "title": "On the Loss of Context-awareness in General Instruction Fine-tuning",
+                            "year": 2025,
+                            "url": "https://arxiv.org/abs/2411.02688",
+                            "summary": "Diagnoses why SFT harms context awareness and introduces conditional instruction tuning with dependency indicators to retain it.",
+                            "citation_reason": "Provides analysis and mitigation strategies that complement Context-DPO."
+                        }
+                    ]
+                },
+                {
+                    "text": "Gradient-free and prompt-conditioned multi-objective alignment.",
+                    "papers": [
+                        {
+                            "title": "Unlocking Decoding-time Controllability: Gradient-Free Multi-Objective Alignment with Contrastive Prompts",
+                            "year": 2024,
+                            "url": "https://arxiv.org/abs/2408.05094",
+                            "summary": "Achieves Pareto-optimal trade-offs among alignment objectives by contrasting expert and adversarial prompts during decoding.",
+                            "citation_reason": "Demonstrates purely prompt-level control without additional fine-tuning overhead."
+                        },
+                        {
+                            "title": "Robust Multi-Objective Preference Alignment with Online DPO",
+                            "year": 2025,
+                            "url": "https://arxiv.org/abs/2503.00295",
+                            "summary": "Introduces MO-ODPO, training a single preference-conditional policy with online DPO that generalises to unseen objective weightings.",
+                            "citation_reason": "Shows scalable optimisation for personalised objective combinations."
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "number": 4,
+            "title": "Evaluation and Benchmarks",
+            "outline": "Surveys emerging datasets, metrics, and experimental protocols for quantifying personalised behaviour, coherence, and trade-offs.",
+            "key_points": [
+                {
+                    "text": "Dialogue-centric benchmarks measuring persona consistency and explanation.",
+                    "papers": [
+                        {
+                            "title": "PersoBench: Benchmarking Personalized Response Generation in Large Language Models",
+                            "year": 2024,
+                            "url": "https://arxiv.org/abs/2410.03198",
+                            "summary": "Evaluates zero-shot personalised dialogue generation across fluency, diversity, coherence and persona usage, uncovering current limitations.",
+                            "citation_reason": "Provides a broad, systematic testbed for response-level personalisation."
+                        },
+                        {
+                            "title": "Revealing Personality Traits: A New Benchmark Dataset for Explainable Personality Recognition on Dialogues",
+                            "year": 2024,
+                            "url": "https://arxiv.org/abs/2409.19723",
+                            "summary": "Introduces PersonalityEvd, requiring models to output both trait labels and supporting evidence chains.",
+                            "citation_reason": "Adds explainability dimensions to evaluation, pertinent to transparent personalisation."
+                        }
+                    ]
+                },
+                {
+                    "text": "Federated and multimodal evaluation of personalisation\u2013robustness trade-offs.",
+                    "papers": [
+                        {
+                            "title": "Profit: Benchmarking Personalization and Robustness Trade-off in Federated Prompt Tuning",
+                            "year": 2023,
+                            "url": "https://arxiv.org/abs/2310.04627",
+                            "summary": "Systematically probes how prompt-based PEFT balances global robustness and local adaptation under varying heterogeneity.",
+                            "citation_reason": "Supplies metrics and findings crucial for federated personalisation scenarios."
+                        },
+                        {
+                            "title": "CatVersion: Concatenating Embeddings for Diffusion-Based Text-to-Image Personalization",
+                            "year": 2023,
+                            "url": "https://arxiv.org/abs/2311.14631",
+                            "summary": "Proposes quantitative metrics (mask-aware CLIP alignment) for assessing how well personalised embeddings preserve concept fidelity.",
+                            "citation_reason": "Illustrates evaluation techniques transferable to multimodal LLM personalisation."
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "number": 5,
+            "title": "Open Challenges and Future Directions",
+            "outline": "Discusses unresolved issues\u2014fairness, safety, creativity, data privacy\u2014and outlines promising research avenues for next-generation personalised LLMs.",
+            "key_points": [
+                {
+                    "text": "Mitigating safety and fairness risks introduced by user-specific conditioning.",
+                    "papers": [
+                        {
+                            "title": "Exploring Safety-Utility Trade-Offs in Personalized Language Models",
+                            "year": 2025,
+                            "url": "https://arxiv.org/abs/2406.11107",
+                            "summary": "Shows how personalisation shifts safety profiles and proposes preference-tuning defences.",
+                            "citation_reason": "Revisited to emphasise the ongoing challenge of balancing safety with individualisation.",
+                            "comment": "Repeated from Section 1 because its empirical findings directly motivate future mitigation research."
+                        },
+                        {
+                            "title": "LLMs are Biased Teachers: Evaluating LLM Bias in Personalized Education",
+                            "year": 2025,
+                            "url": "https://arxiv.org/abs/2410.14012",
+                            "summary": "Finds demographic bias in educational explanations and quantifies it with new bias metrics across nine frontier models.",
+                            "citation_reason": "Highlights demographic bias as an open problem when deploying personalised LLM tutors."
+                        }
+                    ]
+                },
+                {
+                    "text": "Enhancing diversity and creativity while preventing over-fitting to narrow user personas.",
+                    "papers": [
+                        {
+                            "title": "MirrorStories: Reflecting Diversity through Personalized Narrative Generation with Large Language Models",
+                            "year": 2024,
+                            "url": "https://arxiv.org/abs/2409.13935",
+                            "summary": "Introduces 1,500 persona-conditioned stories and shows personalised narratives are more engaging yet raise diversity concerns.",
+                            "citation_reason": "Illustrates the creativity benefits and potential echo-chamber risks of strong persona conditioning."
+                        },
+                        {
+                            "title": "Orca: Enhancing Role-Playing Abilities of Large Language Models by Integrating Personality Traits",
+                            "year": 2024,
+                            "url": "https://arxiv.org/abs/2411.10006",
+                            "summary": "Integrates inferred Big-Five traits into instruction tuning, boosting role-playing but exposing over-fitting issues.",
+                            "citation_reason": "Reused to show how fine-grained trait conditioning raises future research questions on generalisability.",
+                            "comment": "Appeared earlier in Taxonomy; repeated here to underscore open issues stemming from its intensive trait alignment."
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}

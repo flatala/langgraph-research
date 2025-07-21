@@ -28,6 +28,7 @@ class CachingOptions(TypedDict):
     cached_section_ids: Optional[List[str]] = None
 
 # TODO: cleanup the usage of Optionals in the State
+# TODO: make it a normal class not a dict??
 @dataclass(kw_only=True)
 class LitState(TypedDict):
     caching_options: Optional[CachingOptions]
@@ -45,3 +46,7 @@ class LitState(TypedDict):
 
     draft_sections: List[str]          
     verified_sections: List[str]
+
+    next_node: str
+
+    completed: bool
