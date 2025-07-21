@@ -1,47 +1,36 @@
-from literature_review_agent.graph import graph
 from langchain_core.runnables import RunnableConfig
+from langchain_core.messages import ToolMessage
+from langgraph.types import Command
+
 from literature_review_agent.state import LitState, CachingOptions
 from literature_review_agent.utils import print_plan
-from langchain_core.messages import ToolMessage
-from pathlib import Path
-from dotenv import load_dotenv
-from pprint import pprint
-import asyncio
+from literature_review_agent.graph import graph
 
+from IPython.display import Image, display
+from dotenv import load_dotenv
+from pathlib import Path
+
+import asyncio
+import uuid
 
 from literature_review_agent.state import LitState
 import asyncio
 
-def run_workflow(init_state, config, graph):
-    state = init_state
+
+async def run_workflow_async(init_state, graph, cfg):
+    current_input = init_state
     while True:
-        result_dict = asyncio.run(graph.ainvoke(state, config))
-        state = LitState(**result_dict)
+        result = await graph.ainvoke(current_input, cfg)
 
-        # 1. Check if we're waiting for human input (your tool uses `interrupt`)
-        # Typically, you'd look for a specific field, but since your human tool just returns the answer,
-        # you can check the latest message content for a prompt/request.
-        latest_message = state["messages"][-1]
-        # Adjust this condition if your interrupt result is different!
-        if hasattr(latest_message, "content") and state["completed"] is True:
-            print(latest_message.content)
-            user_input = input("Human input required: ")
-            
-            # The tool_call_id should match what was requested (you can extract it from the interrupt/tool call)
-            tool_call_id = latest_message.tool_calls[0]['id']
-            tool_message = ToolMessage(
-                name="human_assistance",
-                tool_call_id=tool_call_id,
-                content=user_input
-            )
-            # Add this response to the messages, then resume
-            state["messages"].append(tool_message)
-            continue  # Resume workflow loop
-        else:
-            break  # Workflow finished, no more human input needed
+        # if workflow is interrupted and expects human input, provide it
+        if "__interrupt__" in result:
+            print(result["__interrupt__"][0].value["query"] + '\n')
+            answer = await asyncio.get_event_loop().run_in_executor(None, input, "Please provide the answer:")
+            current_input = Command(resume={"data": answer})
+            continue
 
-    return state
-
+        # if the workflow is completed, return the result
+        return result  
 
 
 if __name__ == "__main__":
@@ -51,59 +40,41 @@ if __name__ == "__main__":
         override=False,         
     )    
 
+    TOPIC = 'Personalisation and conditional alignment of LLMs.'
+    PAPER_RECENCY = 'after 2023'
+
     init_state = LitState( 
-        # caching_options={
-        #     "cached_plan_id": '0988bc8d-095c95bb-dae967dd-7afcb319',
-        #     "cached_section_ids": None
-        # },          
-        caching_options=None,
+        caching_options={
+            "cached_plan_id": '0988bc8d-095c95bb-dae967dd-7afcb319',
+            "cached_section_ids": None
+        },          
+        # caching_options=None,
         messages=[],
         documents=None,
         retriever=None,                     
-        topic="Personalisation and conditional alignment of LLMs.",
-        paper_recency="after 2023",
+        topic=TOPIC,
+        paper_recency=PAPER_RECENCY,
         search_queries=[],
         plan=None,
         draft_sections=[],
         verified_sections=[],
+        completed=False
     )
 
-    config = RunnableConfig(recursion_limit=50)
+    thread_id = str(uuid.uuid4())
+    config = RunnableConfig(
+        recursion_limit=50,           
+        configurable={"thread_id": thread_id}
+    )
 
-    final_state = run_workflow(init_state, config, graph)
+    img_bytes = graph.get_graph().draw_mermaid_png()
+    with open("graph.png", "wb") as f:
+        f.write(img_bytes)
+
+    final_state = asyncio.run(run_workflow_async(init_state, graph, config))
     if final_state["plan"] is None:
         print("No plan generated.")
         latest_msg = final_state["messages"][-1]
         print(latest_msg)
     else:
         print_plan(final_state["plan"])
-
-# if __name__ == "__main__":
-
-#     load_dotenv(                
-#         Path(__file__).resolve().parent.parent / ".env",
-#         override=False,         
-#     )    
-
-#     init_state = LitState( 
-#         # caching_options={
-#         #     "cached_plan_id": '0988bc8d-095c95bb-dae967dd-7afcb319',
-#         #     "cached_section_ids": None
-#         # },          
-#         caching_options=None,
-#         messages=[],
-#         documents=None,
-#         retriever=None,                     
-#         topic="Personalisation and conditional alignment of LLMs.",
-#         paper_recency="after 2023",
-#         search_queries=[],
-#         plan=None,
-#         draft_sections=[],
-#         verified_sections=[],
-#     )
-
-#     config = RunnableConfig(recursion_limit=50)
-#     result_dict = asyncio.run(graph.ainvoke(init_state, config))
-
-#     final_state = LitState(**result_dict)
-#     print_plan(final_state["plan"])

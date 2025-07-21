@@ -19,7 +19,6 @@ class AsyncToolNode:
         for call in last.tool_calls:
             tool_name = call["name"]
             tool_args = call["args"]
-            print(f"Invoking tool: {tool_name} with args: {tool_args}\n")
             result = await self.tools[tool_name].ainvoke(tool_args)
             out.append(
                 ToolMessage(
@@ -37,11 +36,7 @@ def route_tools(state: LitState, *, config: Optional[RunnableConfig] = None) -> 
     has tool calls. Otherwise, route to the end.
     """
 
-    print("Checking for tool calls...\n")
-
-    if isinstance(state, list):
-        ai_message = state[-1]
-    elif messages := state.get("messages", []):
+    if messages := state.get("messages", []):
         ai_message = messages[-1]
     else:
         raise ValueError(f"No messages found in input state to tool_edge: {state}")

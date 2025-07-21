@@ -1,36 +1,3 @@
-# PREPARE_SEARCH_QUERIES_PROMPT = '''
-
-# You are an expert research assistant.
-
-# ───────────────
-# Task
-# ───────────────
-# Your task is to prepare a list of **{query_count}** search queries to be used on ArXiv to look for papers on the following topic: **{topic}**.
-
-# ───────────────
-# Guidlines
-# ───────────────
-# Please follow these guidliness:
-
-# 1. The prepared querries should be effective in searching a broad range of papers related to the topic, including both recent and foundational works.
-# 2. Ensure that the queries are specific enough to yield relevant results, but broad enough to capture a wide range of literature.
-# 3. Ensure that the queries stay relevant and related to the topic.
-
-# ───────────────
-# Output Format
-# ───────────────
-# Please return the queries in a JSON array format, with each query as a string. The output should look like this:
-
-# [
-#     "query 1",
-#     "query 2",
-#     ...
-# ]
-
-# Make sure all braces/brackets are balanced and NO trailing commas appear.
-# Return **only** the JSON – nothing else.
-# '''
-
 PREPARE_SEARCH_QUERIES_PROMPT = '''
 
 You are an expert research assistant.
@@ -69,7 +36,6 @@ Please return the queries in a JSON array format, with each query as a string. T
 Make sure all braces/brackets are balanced and NO trailing commas appear.
 Return **only** the JSON – nothing else.
 '''
-
 
 
 PLAN_PROMPT = """

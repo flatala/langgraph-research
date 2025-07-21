@@ -1,9 +1,11 @@
 from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain_openai import OpenAIEmbeddings
 from langchain_community.document_loaders import ArxivLoader
 from langchain_community.vectorstores import FAISS
+from langchain_openai import OpenAIEmbeddings
+
 from literature_review_agent.state import LitState, Plan
 from literature_review_agent.utils import reduce_docs
+
 import re
 
 
@@ -49,8 +51,11 @@ async def prepare_rag_knowledge_base(state: LitState, *, config=None) -> dict:
 
     print("Rag setup ready...\n")
 
+
+    # TODO: move the rag to the refinement subgraph, do not use memory for teh subgraph
+    # figure out how to handle the rag better
     return {
-        "retriever": db.as_retriever(),
+        # "retriever": db.as_retriever(),
         "documents": reduce_docs(state.get("documents"), split_docs)
     }
 

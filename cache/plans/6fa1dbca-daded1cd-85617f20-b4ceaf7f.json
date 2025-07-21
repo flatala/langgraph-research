@@ -1,0 +1,230 @@
+{
+    "reasoning": "I first enumerated 20 peer-reviewed or widely-cited arXiv papers from 2023-2025 that directly address (a) user- or group-conditional alignment, (b) personalization techniques such as prefix-tuning, user embeddings and RLHF variants, (c) evaluation benchmarks and (d) deployment/privacy issues. Next I designed a 5-section structure that flows from motivation to open challenges, keeping 2 key points per section so that each of the 20 unique papers appears exactly once (no reuse). Papers were assigned where they best illustrate the point in question, achieving an even thematic and temporal spread.",
+    "plan": [
+        {
+            "number": 1,
+            "title": "Background and Motivation",
+            "outline": "Introduces why generic LLMs fall short when users require outputs aligned with their own traits, values or situational contexts, and highlights emerging risks when alignment fails.",
+            "key_points": [
+                {
+                    "text": "Generic LLM outputs can be subtly persuasive or biased, motivating research into personality-aware control of generation.",
+                    "papers": [
+                        {
+                            "title": "The Dark Patterns of Personalized Persuasion in Large Language Models: Exposing Persuasive Linguistic Features for Big Five Personality Traits in LLMs Responses",
+                            "year": 2024,
+                            "url": "https://arxiv.org/abs/2411.06008",
+                            "summary": "Shows that many LLMs adapt linguistic features (e.g., anxiety or achievement words) when prompts contain user personality cues, revealing potential for manipulative personalization.",
+                            "citation_reason": "Illustrates the fundamental motivation: LLMs already shift style per personality, making principled personalization and safeguards necessary."
+                        },
+                        {
+                            "title": "Tailoring Personality Traits in Large Language Models via Unsupervisedly-Built Personalized Lexicons",
+                            "year": 2024,
+                            "url": "https://arxiv.org/abs/2310.16582",
+                            "summary": "Proposes a decoding-time lexicon method to steer LLM personality expression without fine-tuning, underscoring demand for lightweight personalization.",
+                            "citation_reason": "Demonstrates early technical attempts that surface the broader motivation for user-conditioned generation."
+                        }
+                    ]
+                },
+                {
+                    "text": "Alignment remains fragile; optimizing models without careful objectives can trigger reward hacking or unstable training.",
+                    "papers": [
+                        {
+                            "title": "Aligning Language Models with Offline Learning from Human Feedback",
+                            "year": 2023,
+                            "url": "https://arxiv.org/abs/2308.12050",
+                            "summary": "Introduces filtering alignment, reward-weighted regression and conditional alignment as offline alternatives to PPO, improving stability and compute efficiency.",
+                            "citation_reason": "Frames the alignment problem and motivates conditional approaches that avoid costly on-policy RL."
+                        },
+                        {
+                            "title": "Spontaneous Reward Hacking in Iterative Self-Refinement",
+                            "year": 2024,
+                            "url": "https://arxiv.org/abs/2407.04549",
+                            "summary": "Shows that when a generator and evaluator share an LLM, iterative feedback can diverge from true user utility, exposing misalignment risks.",
+                            "citation_reason": "Highlights why conditional alignment must be robust against evaluator-specific exploitation."
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "number": 2,
+            "title": "Taxonomy of Personalisation and Conditional Alignment Techniques",
+            "outline": "Organises recent methods by how they incorporate user or group information and how many parameters they modify, clarifying the design landscape.",
+            "key_points": [
+                {
+                    "text": "Parameter-efficient fine-tuning with prefix vectors enables quick per-user adaptation without full model retraining.",
+                    "papers": [
+                        {
+                            "title": "Towards Adaptive Prefix Tuning for Parameter-Efficient Language Model Fine-tuning",
+                            "year": 2023,
+                            "url": "https://arxiv.org/abs/2305.15212",
+                            "summary": "Introduces gate-based adaptive prefix tuning that varies across layers and tokens, outperforming fixed prefixes on SuperGLUE and NER.",
+                            "citation_reason": "Represents the core \u2018prefix\u2019 branch of parameter-efficient personalization."
+                        },
+                        {
+                            "title": "User-Aware Prefix-Tuning is a Good Learner for Personalized Image Captioning",
+                            "year": 2024,
+                            "url": "https://arxiv.org/abs/2312.04793",
+                            "summary": "Applies prefix-tuning to fuse CLIP image features with user context, doubling BLEU-4 and CIDEr on Instagram/YFCC datasets.",
+                            "citation_reason": "Extends prefix methods to multi-modal personalized generation, enriching the taxonomy."
+                        }
+                    ]
+                },
+                {
+                    "text": "Embedding-based contextualization feeds compact user representations directly into frozen LLMs for scalable inference.",
+                    "papers": [
+                        {
+                            "title": "User-LLM: Efficient LLM Contextualization with User Embeddings",
+                            "year": 2024,
+                            "url": "https://arxiv.org/abs/2402.13598",
+                            "summary": "Encodes interaction histories into embeddings that a Perceiver layer injects through cross-attention, yielding up to 78\u00d7 speed-ups over textual prompts.",
+                            "citation_reason": "Defines the emerging \u2018user-embedding\u2019 category of conditional alignment."
+                        },
+                        {
+                            "title": "From General to Specific: Tailoring Large Language Models for Personalized Healthcare",
+                            "year": 2024,
+                            "url": "https://arxiv.org/abs/2412.15957",
+                            "summary": "Combines recommendation signals and reinforcement learning to build hard prompts that deliver individualized medical advice.",
+                            "citation_reason": "Shows domain-specific embedding conditioning, illustrating taxonomy breadth."
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "number": 3,
+            "title": "Methods and Algorithms for Conditional Alignment",
+            "outline": "Compares advanced algorithmic frameworks that jointly optimise policies, rewards and objectives to achieve fine-grained, user-aware alignment.",
+            "key_points": [
+                {
+                    "text": "Personalized RLHF variants explicitly model user preference distributions to scale alignment across many individuals.",
+                    "papers": [
+                        {
+                            "title": "Personalized Language Modeling from Personalized Human Feedback",
+                            "year": 2024,
+                            "url": "https://arxiv.org/abs/2402.05133",
+                            "summary": "P-RLHF learns a lightweight user model alongside the policy, enabling implicit and explicit preference capture without per-user fine-tunes.",
+                            "citation_reason": "Provides a concrete algorithm that intertwines user modelling and RLHF."
+                        },
+                        {
+                            "title": "Low-Rank Contextual Reinforcement Learning from Heterogeneous Human Feedback",
+                            "year": 2024,
+                            "url": "https://arxiv.org/abs/2412.19436",
+                            "summary": "Introduces LoCo-RLHF, exploiting low-rank structure in user-context/reward interactions and a pessimistic policy for off-distribution robustness.",
+                            "citation_reason": "Represents state-of-the-art modelling of heterogeneous feedback in alignment."
+                        }
+                    ]
+                },
+                {
+                    "text": "Multi-objective and parameter-efficient alignment techniques seek generalizable, plug-and-play conditioning.",
+                    "papers": [
+                        {
+                            "title": "MetaAligner: Towards Generalizable Multi-Objective Alignment of Language Models",
+                            "year": 2024,
+                            "url": "https://arxiv.org/abs/2403.17141",
+                            "summary": "Reformulates alignment datasets into dynamic objectives, then corrects weak outputs toward strong ones, generalizing across unseen goals.",
+                            "citation_reason": "Showcases conditional alignment that is both policy-agnostic and objective-flexible."
+                        },
+                        {
+                            "title": "Aligner: One Global Token is Worth Millions of Parameters When Aligning Large Language Models",
+                            "year": 2023,
+                            "url": "https://arxiv.org/abs/2312.05503",
+                            "summary": "Finds that a single trainable global token can align LLMs comparably to LoRA using ~5k parameters, revealing orthogonality between form and knowledge.",
+                            "citation_reason": "Highlights extreme parameter efficiency for conditional alignment."
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "number": 4,
+            "title": "Evaluation and Benchmarks",
+            "outline": "Surveys publicly available datasets, metrics and evaluation protocols that quantify how well LLMs personalize and conditionally align.",
+            "key_points": [
+                {
+                    "text": "General-purpose personalization benchmarks cover classification, generation and question answering across diverse user profiles.",
+                    "papers": [
+                        {
+                            "title": "LaMP: When Large Language Models Meet Personalization",
+                            "year": 2024,
+                            "url": "https://arxiv.org/abs/2304.11406",
+                            "summary": "Provides seven tasks and retrieval baselines, exposing gains from personalized context in zero-shot and fine-tuned settings.",
+                            "citation_reason": "Serves as the de-facto standard for evaluating textual personalization."
+                        },
+                        {
+                            "title": "LaMP-QA: A Benchmark for Personalized Long-form Question Answering",
+                            "year": 2025,
+                            "url": "https://arxiv.org/abs/2506.00137",
+                            "summary": "Extends LaMP to long-form QA across 45 sub-categories, with human and automatic evaluation of alignment to user context.",
+                            "citation_reason": "Introduces an evaluation suite explicitly targeting personalized QA."
+                        }
+                    ]
+                },
+                {
+                    "text": "Multi-modal and interactive evaluations measure alignment quality under natural language feedback and first-person perception.",
+                    "papers": [
+                        {
+                            "title": "DRESS: Instructing Large Vision-Language Models to Align and Interact with Humans via Natural Language Feedback",
+                            "year": 2024,
+                            "url": "https://arxiv.org/abs/2311.10081",
+                            "summary": "Categorises feedback into critique and refinement, and proposes conditional RL to quantify helpfulness, honesty and harmlessness gains.",
+                            "citation_reason": "Supplies metrics for feedback-driven conditional alignment in vision-language models."
+                        },
+                        {
+                            "title": "EgoThink: Evaluating First-Person Perspective Thinking Capability of Vision-Language Models",
+                            "year": 2024,
+                            "url": "https://arxiv.org/abs/2311.15596",
+                            "summary": "Creates a 12-dimension benchmark using egocentric videos to test whether models can reason from the user\u2019s point of view.",
+                            "citation_reason": "Adds first-person evaluation necessary for embodied personalized agents."
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "number": 5,
+            "title": "Open Challenges and Future Directions",
+            "outline": "Discusses unresolved issues such as privacy-preserving deployment, large-scale production alignment, and multi-modal user conditioning that will guide the next research wave.",
+            "key_points": [
+                {
+                    "text": "Edge deployment and privacy necessitate compact, secure personal LLMs integrated into everyday environments.",
+                    "papers": [
+                        {
+                            "title": "PLMM: Personal Large Language Models on Mobile Devices",
+                            "year": 2024,
+                            "url": "https://arxiv.org/abs/2309.14726",
+                            "summary": "Proposes a three-level architecture with personal, expert and traditional models, enabling on-device inference with encrypted inputs.",
+                            "citation_reason": "Highlights privacy-centric personalization and compute constraints."
+                        },
+                        {
+                            "title": "Bridging the Gap Between Natural User Expression with Complex Automation Programming in Smart Homes",
+                            "year": 2024,
+                            "url": "https://arxiv.org/abs/2408.12687",
+                            "summary": "AwareAuto lets users define complex automations via natural language, relying on LLM contextual understanding of household preferences.",
+                            "citation_reason": "Illustrates real-world deployment scenarios requiring secure conditional alignment."
+                        }
+                    ]
+                },
+                {
+                    "text": "Scaling personalized alignment to production and multimodal settings remains challenging in terms of training stability and data collection.",
+                    "papers": [
+                        {
+                            "title": "ChatGLM-RLHF: Practices of Aligning Large Language Models with Human Feedback",
+                            "year": 2024,
+                            "url": "https://arxiv.org/abs/2404.00934",
+                            "summary": "Details industrial RLHF pipeline with variance reduction, model parallelism and regularization, yielding 15% win-rate gains in Chinese tasks.",
+                            "citation_reason": "Provides insight into large-scale operational hurdles of alignment at deployment time."
+                        },
+                        {
+                            "title": "Show and Guide: Instructional-Plan Grounded Vision and Language Model",
+                            "year": 2024,
+                            "url": "https://arxiv.org/abs/2409.19074",
+                            "summary": "MM-PlanLLM retrieves video segments and images to ground procedural guidance, introducing tasks that need context-driven multimodal alignment.",
+                            "citation_reason": "Points toward future research on multimodal personalized assistance beyond text."
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}
