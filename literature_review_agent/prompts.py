@@ -1,4 +1,5 @@
-SYSTEM_PROMPT = """You are an expert literature review assistant specializing in academic research and systematic reviews. Your primary expertise lies in:
+SYSTEM_PROMPT = """
+You are an expert literature review assistant specializing in academic research and systematic reviews. Your primary expertise lies in:
 
 • **Research Planning**: Designing comprehensive literature review structures that cover all relevant aspects of a research topic
 • **Academic Search**: Formulating effective search queries to identify relevant peer-reviewed papers and preprints
@@ -8,9 +9,12 @@ SYSTEM_PROMPT = """You are an expert literature review assistant specializing in
 
 You assist researchers, graduate students, and academics in conducting thorough literature reviews by providing structured guidance, search strategies, and analytical frameworks. You maintain high standards for academic rigor, ensure comprehensive coverage of relevant literature, and help users create well-organized, logically structured reviews.
 
-Your responses are always evidence-based, methodical, and designed to support scholarly work at the graduate level and beyond."""
+Your responses are always evidence-based, methodical, and designed to support scholarly work at the graduate level and beyond.
+"""
 
-PREPARE_SEARCH_QUERIES_PROMPT = '''───────────────
+
+PREPARE_SEARCH_QUERIES_PROMPT = '''
+───────────────
 Task
 ───────────────
 Prepare a list of **{query_count}** search queries to be used on ArXiv for papers on: **{topic}**.
@@ -42,61 +46,64 @@ Return queries as a JSON array:
 ]
 
 Ensure balanced braces/brackets with NO trailing commas. Return **only** the JSON.
+
 '''
 
 
-PLAN_PROMPT = """───────────────
+PLAN_PROMPT = """
+───────────────
 Task
 ───────────────
-Draft a comprehensive outline for a graduate‑level **literature review** on **{topic}**, using peer‑reviewed or widely‑cited arXiv papers **{paper_recency}**. 
+Create a detailed outline for a graduate-level **literature review** on **{topic}**, using **peer-reviewed or widely cited arXiv papers** published **{paper_recency}**.
 
-Available search queries: **{search_queries}**
+Use the following search queries to guide paper selection: **{search_queries}**
 
 ───────────────
 Structure Requirements
 ───────────────
-Create **4–6 major sections** in logical order:
-1. *Background/Motivation* – problem definition and significance
-2. *Taxonomy/Categorisation* – organize existing work meaningfully  
-3. *Methods/Approaches* – compare techniques, algorithms, frameworks
-4. *Evaluation & Benchmarks* – datasets, metrics, experimental results
-5. *Applications/Mitigation* – how research addresses the problem
-6. *Open Challenges & Future Directions* – gaps, limitations, opportunities
+Structure the review into **5 core sections**:
 
-**For each section provide:**
-- `number`: section order (1, 2, ...)
-- `title`: concise heading  
-- `outline`: 1–2 sentences on section purpose and fit within review
-- `key_points`: 2–4 bullet points, each citing 2–3 primary papers
+1. *Introduction* — define the topic, its importance, and scope of the review  
+2. *Thematic or Methodological Landscape* — organize the literature by themes, methods, or trends  
+3. *Synthesis & Critical Discussion* — compare findings, highlight patterns, contradictions, or methodological issues  
+4. *Conclusion* — summarize key insights and state the current state of knowledge  
+5. *Future Directions* — identify gaps, limitations, and opportunities for further research
+
+For each section, provide:
+- `number`: section order (integer)  
+- `title`: clear and concise heading  
+- `outline`: 1–2 sentences describing the section's purpose  
+- `key_points`: 2–4 points summarizing major trends, insights, or challenges  
+    - Each point must cite **2–3 distinct papers** with metadata
 
 ───────────────
 Citation Guidelines
 ───────────────
-• **Avoid paper reuse** across sections unless absolutely central (justify in comments)
-• **Cite every relevant paper** from search results at least once
-• **Distribute citations evenly** across sections and key points
-• **Prioritize recent and highly-cited works** while maintaining broad coverage
+• **Do not reuse papers** across sections unless critical (justify reuse in `citation_reason`)  
+• **All relevant papers** from the search must be cited at least once  
+• **Distribute citations** evenly across sections and key points  
+• Focus on **recent and influential work**, but maintain broad coverage
 
 ───────────────
 Output Format (Valid JSON Only)
 ───────────────
 {{
-    "reasoning": "<Step-by-step explanation of structure selection, paper distribution, and citation strategy>",
+    "reasoning": "<Explain how the topic was structured, how papers were grouped, and how citations were allocated>",
     "plan": [
         {{
             "number": <int>,
-            "title": "<section title>",
-            "outline": "<Section role and purpose in the review>",
+            "title": "<Section Title>",
+            "outline": "<Purpose and role of this section>",
             "key_points": [
                 {{
-                    "text": "<Point description and relevance>",
+                    "text": "<Summary of a major point, issue, or insight>",
                     "papers": [
-                        {{ 
-                            "title": "<paper title>",
+                        {{
+                            "title": "<Paper title>",
                             "year": <int>,
                             "url": "<https://arxiv.org/abs/...>",
                             "summary": "<Brief paper summary>",
-                            "citation_reason": "<Why this paper for this point/section>"
+                            "citation_reason": "<Why this paper was selected for this point and section>"
                         }},
                         ...
                     ]
@@ -108,12 +115,11 @@ Output Format (Valid JSON Only)
     ]
 }}
 
-Return balanced JSON with NO trailing commas. JSON only.
+Return only valid JSON. No markdown. No trailing commas.
 """
 
 
 REFLECTION_PROMPT = """
-
 Reflect on the papers you have found so far for this literature review on {topic}.
 
 Looking at the gathered search results, answer the following questions, one sentence for each:
@@ -123,12 +129,9 @@ Looking at the gathered search results, answer the following questions, one sent
 - Do you have enough papers to avoid duplication across sections?
 - Do the papers you have found so far support all of the sections requested by the user?
 - Do the collected papers allow for building a logically flowing review?
-
 """
 
 
 REFLECTION_NEXT_STEP_PROMPT = """
-
-If you are confident that you have neough papers gathered, prepare the research plan. Otherwise use the search tool again.
-
+If you are confident that you have enough papers gathered, prepare the research plan. Otherwise use the search tool again.
 """

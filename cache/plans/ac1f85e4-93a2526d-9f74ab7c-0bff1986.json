@@ -1,0 +1,286 @@
+{
+    "reasoning": "I first assembled a pool of 15 post-2023 arXiv papers that jointly span the two focal dimensions: (i) techniques for personalising large language models (LLMs) and (ii) conditional value- or safety-alignment. I grouped them by methodological commonalities: parameter-efficient or post-hoc personalisation, RLHF-based personalisation, federated/prompt-level personalisation, multi-objective or negative-prompt alignment, and personality/psychology-driven alignment. To respect the guideline on limited cross-section reuse, each paper is allocated to one primary section; only four high-leverage papers are reused across sections and explicitly justified in the citation_reason field. The 5-section outline uses 11 unique papers exactly once and 4 papers twice, giving sufficient citations (24 total) while preserving breadth and a logical narrative flow from motivation through methods, critique, and future work.",
+    "plan": [
+        {
+            "number": 1,
+            "title": "Introduction: From General-Purpose LLMs to User-Aligned Models",
+            "outline": "Define personalisation and conditional alignment, articulate their importance for safety and usefulness, and delimit the review\u2019s scope to post-2023 advances.",
+            "key_points": [
+                {
+                    "text": "Personalisation concerns tailoring outputs to individual profiles rather than average users, demanding new benchmarks and evaluation metrics.",
+                    "papers": [
+                        {
+                            "title": "LaMP: When Large Language Models Meet Personalization",
+                            "year": 2024,
+                            "url": "https://arxiv.org/abs/2304.11406",
+                            "summary": "Introduces the LaMP benchmark covering seven personalised tasks and studies retrieval-augmented personalisation for both zero-shot and fine-tuned LLMs.",
+                            "citation_reason": "Provides a clear definition of personalised NLP tasks and motivates the need for systematic study."
+                        },
+                        {
+                            "title": "Personality of AI",
+                            "year": 2023,
+                            "url": "https://arxiv.org/abs/2312.02998",
+                            "summary": "Argues for \"personality alignment\" in organisational settings, framing personalisation as a form of human\u2013AI fit akin to personality recruitment.",
+                            "citation_reason": "Offers conceptual grounding that situates personalisation in broader alignment debates."
+                        }
+                    ]
+                },
+                {
+                    "text": "Conditional alignment extends personalisation by steering models towards user-specific values, norms, and harms-avoidance during inference or fine-tuning.",
+                    "papers": [
+                        {
+                            "title": "Self-Alignment: Improving Alignment of Cultural Values in LLMs via In-Context Learning",
+                            "year": 2024,
+                            "url": "https://arxiv.org/abs/2408.16482",
+                            "summary": "Demonstrates that inexpensive in-context learning with culturally diverse exemplars can shift model responses toward target value sets across multiple languages.",
+                            "citation_reason": "Illustrates conditional value alignment using lightweight, plug-and-play techniques."
+                        },
+                        {
+                            "title": "MetaAligner: Towards Generalizable Multi-Objective Alignment of Language Models",
+                            "year": 2024,
+                            "url": "https://arxiv.org/abs/2403.17141",
+                            "summary": "Proposes a policy-agnostic framework that dynamically reformulates alignment objectives and enables text-prompt-conditioned control over multiple human values.",
+                            "citation_reason": "Highlights the move from single-objective safety alignment to conditional, user-selectable objectives."
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "number": 2,
+            "title": "Methodological Landscape: Techniques for Personalising and Conditionally Aligning LLMs",
+            "outline": "Survey the major families of methods released after 2023, organising them by how and where personalisation or conditional alignment is injected.",
+            "key_points": [
+                {
+                    "text": "Parameter-efficient or post-hoc personalisation adapts existing LLMs with lightweight components or merging strategies.",
+                    "papers": [
+                        {
+                            "title": "PLMM: Personal Large Language Models on Mobile Devices",
+                            "year": 2024,
+                            "url": "https://arxiv.org/abs/2309.14726",
+                            "summary": "Distils conventional LLMs into personal, privacy-preserving variants that run in real time on edge devices.",
+                            "citation_reason": "Represents on-device personalisation with privacy constraints."
+                        },
+                        {
+                            "title": "Personalized Soups: Personalized Large Language Model Alignment via Post-hoc Parameter Merging",
+                            "year": 2023,
+                            "url": "https://arxiv.org/abs/2310.11564",
+                            "summary": "Models individual preferences as separate objectives and merges independently trained parameter slices to obtain a customised model.",
+                            "citation_reason": "Shows efficient personalisation without retraining the full model."
+                        },
+                        {
+                            "title": "Tailoring Personality Traits in LLMs via Unsupervisedly-Built Personalized Lexicons",
+                            "year": 2024,
+                            "url": "https://arxiv.org/abs/2310.16582",
+                            "summary": "Uses unsupervised lexicons to adjust token probabilities during decoding, enabling plug-and-play personality control.",
+                            "citation_reason": "Illustrates controllable generation through decoding-time interventions."
+                        }
+                    ]
+                },
+                {
+                    "text": "Reinforcement learning from personalised human feedback (P-RLHF) and low-rank contextual reward models capture heterogeneous user preferences.",
+                    "papers": [
+                        {
+                            "title": "Personalized Language Modeling from Personalized Human Feedback",
+                            "year": 2024,
+                            "url": "https://arxiv.org/abs/2402.05133",
+                            "summary": "Introduces P-RLHF with a lightweight user model that jointly learns user embeddings and a personalised policy.",
+                            "citation_reason": "Extends vanilla RLHF to the personalised setting with scalability considerations."
+                        },
+                        {
+                            "title": "Low-Rank Contextual RLHF (LoCo-RLHF)",
+                            "year": 2024,
+                            "url": "https://arxiv.org/abs/2412.19436",
+                            "summary": "Uses low-rank structure to model user context\u2013response interactions and proposes a pessimistic policy for distributional shifts.",
+                            "citation_reason": "Addresses heterogeneity and robustness in reward learning for personalisation."
+                        },
+                        {
+                            "title": "Negative-Prompt-driven Alignment for Generative Language Model (NEAT)",
+                            "year": 2024,
+                            "url": "https://arxiv.org/abs/2410.12194",
+                            "summary": "Introduces online alignment that simultaneously rewards positive and penalises negative prompts during preference optimisation.",
+                            "citation_reason": "Represents safety-oriented conditional alignment via dual feedback."
+                        }
+                    ]
+                },
+                {
+                    "text": "Federated and prompt-level personalisation tackles non-IID data and communication constraints across users or devices.",
+                    "papers": [
+                        {
+                            "title": "FLEx: Federated LLMs with Personalized Experts",
+                            "year": 2025,
+                            "url": "https://arxiv.org/abs/2506.00965",
+                            "summary": "Uses mixture-of-experts pruning and adaptive gating so each client maintains a single local expert while sharing global layers.",
+                            "citation_reason": "Shows how MoE architectures enable communication-efficient personalisation."
+                        },
+                        {
+                            "title": "Harmonizing Generalization and Personalization in Federated Prompt Learning (FedPGP)",
+                            "year": 2024,
+                            "url": "https://arxiv.org/abs/2405.09771",
+                            "summary": "Balances shared CLIP knowledge and low-rank personalised prompts using a contrastive objective.",
+                            "citation_reason": "Addresses the trade-off between global generalisation and local personalisation."
+                        },
+                        {
+                            "title": "Profit: Benchmarking Personalization and Robustness Trade-off in Federated Prompt Tuning",
+                            "year": 2023,
+                            "url": "https://arxiv.org/abs/2310.04627",
+                            "summary": "Benchmarks prompt-tuning under varying data heterogeneity and studies regularisation and interpolation strategies.",
+                            "citation_reason": "Provides empirical insight into robustness vs. personalisation in federated settings."
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "number": 3,
+            "title": "Synthesis & Critical Discussion",
+            "outline": "Contrast the reviewed methods, identify converging patterns, highlight contradictions, and critique methodological limitations.",
+            "key_points": [
+                {
+                    "text": "Multi-objective alignment frameworks reveal tensions between scalability and fine-grained value control.",
+                    "papers": [
+                        {
+                            "title": "MetaAligner: Towards Generalizable Multi-Objective Alignment of Language Models",
+                            "year": 2024,
+                            "url": "https://arxiv.org/abs/2403.17141",
+                            "summary": "Provides dynamic objective reformulation and policy-agnostic alignment, reducing GPU hours by over 90%.",
+                            "citation_reason": "Reused from Introduction because it is pivotal for discussing scalability of conditional alignment across objectives."
+                        },
+                        {
+                            "title": "Negative-Prompt-driven Alignment for Generative Language Model (NEAT)",
+                            "year": 2024,
+                            "url": "https://arxiv.org/abs/2410.12194",
+                            "summary": "Penalises undesirable generations, demonstrating balanced alignment across helpfulness and harmlessness.",
+                            "citation_reason": "Shows an alternative dual-feedback strategy and exposes optimisation trade-offs."
+                        },
+                        {
+                            "title": "Self-Alignment: Improving Alignment of Cultural Values in LLMs via In-Context Learning",
+                            "year": 2024,
+                            "url": "https://arxiv.org/abs/2408.16482",
+                            "summary": "Uses exemplar-based conditioning to shift cultural value adherence in multilingual models.",
+                            "citation_reason": "Reused from Introduction because it provides contrasting evidence for lightweight inference-time alignment."
+                        }
+                    ]
+                },
+                {
+                    "text": "Personality-centric approaches argue that stable trait modelling is essential yet difficult, given evaluation subjectivity and prompt-sensitivity.",
+                    "papers": [
+                        {
+                            "title": "Dynamic Generation of Personalities with Large Language Models (DPG)",
+                            "year": 2024,
+                            "url": "https://arxiv.org/abs/2404.07084",
+                            "summary": "Combines hyper-networks and Big-Five assessments to generate controllable dialogue personalities, introducing a new metric.",
+                            "citation_reason": "Offers a data-driven method and metric for personality generation quality."
+                        },
+                        {
+                            "title": "Machine Mindset: An MBTI Exploration of Large Language Models",
+                            "year": 2024,
+                            "url": "https://arxiv.org/abs/2312.12999",
+                            "summary": "Embeds Myers-Briggs traits via fine-tuning and DPO, reporting consistent performance shifts aligned with each personality profile.",
+                            "citation_reason": "Explores psychological frameworks and highlights evaluation subjectivity."
+                        },
+                        {
+                            "title": "Tailoring Personality Traits in LLMs via Unsupervisedly-Built Personalized Lexicons",
+                            "year": 2024,
+                            "url": "https://arxiv.org/abs/2310.16582",
+                            "summary": "Decoding-time lexicon steering yields fine-grained, plug-and-play trait control.",
+                            "citation_reason": "Reused from Landscape because it offers a contrasting, lightweight personality control method."
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "number": 4,
+            "title": "Conclusion: State of Knowledge in Personalised & Conditionally Aligned LLMs",
+            "outline": "Summarise the accumulated evidence, emphasising what is robustly established versus still tentative.",
+            "key_points": [
+                {
+                    "text": "Recent work confirms that lightweight personalisation (LaMP, FLEx) and targeted RLHF (P-RLHF) can substantially improve user satisfaction without retraining full models, yet evaluation and safety assurances remain ad-hoc.",
+                    "papers": [
+                        {
+                            "title": "LaMP: When Large Language Models Meet Personalization",
+                            "year": 2024,
+                            "url": "https://arxiv.org/abs/2304.11406",
+                            "summary": "Defines benchmark tasks and shows retrieval-augmented personalisation gains.",
+                            "citation_reason": "Reused from Introduction as it supplies quantitative evidence of personalisation benefits."
+                        },
+                        {
+                            "title": "FLEx: Federated LLMs with Personalized Experts",
+                            "year": 2025,
+                            "url": "https://arxiv.org/abs/2506.00965",
+                            "summary": "Demonstrates communication-efficient expert specialisation with superior performance under non-IID data.",
+                            "citation_reason": "Reused from Landscape to underline engineering feasibility of large-scale personalisation."
+                        },
+                        {
+                            "title": "Personalized Language Modeling from Personalized Human Feedback",
+                            "year": 2024,
+                            "url": "https://arxiv.org/abs/2402.05133",
+                            "summary": "Shows that a compact user model jointly trained with the policy yields higher alignment to individual preferences.",
+                            "citation_reason": "Illustrates the empirical maturity of RLHF-based personalisation."
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "number": 5,
+            "title": "Future Directions and Open Challenges",
+            "outline": "Identify key research gaps, methodological limitations, and promising paths for further investigation.",
+            "key_points": [
+                {
+                    "text": "Safety-centred personalisation needs systematic negative-prompt datasets, calibrated reward models, and robust evaluation under distributional shift.",
+                    "papers": [
+                        {
+                            "title": "Negative-Prompt-driven Alignment for Generative Language Model (NEAT)",
+                            "year": 2024,
+                            "url": "https://arxiv.org/abs/2410.12194",
+                            "summary": "Uses dual feedback optimisation to curb harmful outputs alongside encouraging helpful ones.",
+                            "citation_reason": "Provides a concrete starting point for negative-prompt corpora but also exposes their scarcity."
+                        },
+                        {
+                            "title": "Low-Rank Contextual RLHF (LoCo-RLHF)",
+                            "year": 2024,
+                            "url": "https://arxiv.org/abs/2412.19436",
+                            "summary": "Addresses distributional shifts through a pessimistic offline policy in contextual RLHF.",
+                            "citation_reason": "Highlights the need for safety guarantees when user feedback is heterogeneous."
+                        },
+                        {
+                            "title": "Self-Alignment: Improving Alignment of Cultural Values in LLMs via In-Context Learning",
+                            "year": 2024,
+                            "url": "https://arxiv.org/abs/2408.16482",
+                            "summary": "Shows in-context conditioning can steer models toward diverse cultural norms.",
+                            "citation_reason": "Suggests future research on evaluating alignment across broader value spectra."
+                        }
+                    ]
+                },
+                {
+                    "text": "Edge-deployment and federated scenarios call for ultra-lightweight, privacy-preserving personalisation with strong generalisation guarantees.",
+                    "papers": [
+                        {
+                            "title": "PLMM: Personal Large Language Models on Mobile Devices",
+                            "year": 2024,
+                            "url": "https://arxiv.org/abs/2309.14726",
+                            "summary": "Proposes small, private LLMs capable of real-time inference on mobile hardware.",
+                            "citation_reason": "Signals a shift toward on-device personalisation where data cannot leave the user."
+                        },
+                        {
+                            "title": "Profit: Benchmarking Personalization and Robustness Trade-off in Federated Prompt Tuning",
+                            "year": 2023,
+                            "url": "https://arxiv.org/abs/2310.04627",
+                            "summary": "Shows how prompt-tuning hyper-parameters affect the personalisation\u2013robustness balance under limited local updates.",
+                            "citation_reason": "Provides a benchmark that future federated personalisation methods can build upon."
+                        },
+                        {
+                            "title": "Harmonizing Generalization and Personalization in Federated Prompt Learning (FedPGP)",
+                            "year": 2024,
+                            "url": "https://arxiv.org/abs/2405.09771",
+                            "summary": "Introduces contrastive objectives that maintain generalisation while allowing client-specific low-rank adaptations.",
+                            "citation_reason": "Points to promising low-rank and contrastive techniques for future edge personalisation."
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}

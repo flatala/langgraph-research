@@ -154,7 +154,7 @@ async def parse_plan(state: LitState, *, config: Optional[RunnableConfig] = None
     with open(plan_path, "w") as f:
         json.dump(plan, f, indent=4)
 
-    print(f"Saved plan at {plan_path}.\n")
+    print(f"Saved plan at {plan_path}\n")
 
     return {
         "plan": plan,
