@@ -9,20 +9,40 @@ import os
 class Configuration:
     """The configuration for the agent."""
 
-    # MODELS
-
+    # API KEYS
+    
     openai_api_key: Optional[str] = field(
         default_factory=lambda: os.getenv("OPENAI_API_KEY")
+    )
+    
+    anthropic_api_key: Optional[str] = field(
+        default_factory=lambda: os.getenv("ANTHROPIC_API_KEY")
+    )
+    
+    google_api_key: Optional[str] = field(
+        default_factory=lambda: os.getenv("GOOGLE_API_KEY")
+    )
+
+    # MODELS
+
+    orchestrator_provider: str = field(
+        default="openai",
+        metadata={"description": "Provider for orchestrator model: 'openai', 'anthropic', or 'google'"},
     )
 
     orchestrator_model: Annotated[str, {"__template_metadata__": {"kind": "llm"}}] = field(
         default="o3",
-        metadata={"description": "The model planning the literature review process."},
+        metadata={"description": "The model name for planning the literature review process."},
+    )
+
+    text_provider: str = field(
+        default="openai", 
+        metadata={"description": "Provider for text model: 'openai', 'anthropic', or 'google'"},
     )
 
     text_model: Annotated[str, {"__template_metadata__": {"kind": "llm"}}] = field(
         default="gpt-4.1-2025-04-14",
-        metadata={"description": "OpenAI model name, e.g. 'gpt-4o-mini'."},
+        metadata={"description": "The model name for text processing tasks."},
     )
 
     # PROMPTS
