@@ -78,6 +78,12 @@ class Configuration:
         },
     )
 
+    reflection_next_step_prompt: str = field(
+        default=prompts.REFLECTION_NEXT_STEP_PROMPT,
+        metadata={
+            "description": "The prompt template for determining the next steps after reflection. "
+        }
+    )
 
     # NUMERIC
 
@@ -88,13 +94,19 @@ class Configuration:
         },
     )
 
+    paper_count: int = field(
+        default=15,
+        metadata={
+            "description": "The number of research papers to find and review."
+        },
+    )
+
     max_search_results: int = field(
         default=35,
         metadata={
             "description": "The maximum number of search results to return for each search query."
         },
     )
-
 
     # HELPERS
 

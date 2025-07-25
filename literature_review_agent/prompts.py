@@ -112,8 +112,23 @@ Return balanced JSON with NO trailing commas. JSON only.
 """
 
 
-REFLECTION_PROMPT = """Let me reflect on the papers I've found so far for this literature review on {topic}.
+REFLECTION_PROMPT = """
 
-Looking at the search results, I should consider: Are there any obvious gaps in coverage? Do I have a good mix of foundational and recent work? Are there specific research areas or methodologies that seem underrepresented? 
+Reflect on the papers you have found so far for this literature review on {topic}.
 
-Based on this reflection, do I need to search for more papers with different queries, or do I have sufficient coverage to proceed with creating a comprehensive literature review plan?"""
+Looking at the gathered search results, answer the following questions, one sentence for each:
+
+- Did you collect at least {paper_count} papers?
+- Are there specific research areas that seem underrepresented? 
+- Do you have enough papers to avoid duplication across sections?
+- Do the papers you have found so far support all of the sections requested by the user?
+- Do the collected papers allow for building a logically flowing review?
+
+"""
+
+
+REFLECTION_NEXT_STEP_PROMPT = """
+
+If you are confident that you have neough papers gathered, prepare the research plan. Otherwise use the search tool again.
+
+"""

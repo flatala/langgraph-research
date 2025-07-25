@@ -1,0 +1,221 @@
+{
+    "reasoning": "I build the outline around a typical research flow\u2014motivation \u2192 taxonomy \u2192 methods \u2192 evaluation \u2192 open challenges\u2014so that readers progress from understanding why personalisation and conditional alignment matter to how they are technically realised, measured, and improved. Seven highly-cited arXiv papers from 2023-2024 are distributed so that every paper appears at least once; only two papers (PLMM and Detecting Mode Collapse) appear twice because they are pivotal for both the technical discussion and the challenges section. Each section has 2\u20133 concise key points with 2\u20133 cited papers, keeping duplication minimal while ensuring thematic fit.",
+    "plan": [
+        {
+            "number": 1,
+            "title": "Background and Motivation",
+            "outline": "Explains why generic LLMs are inadequate for many real-world scenarios and frames personalisation and conditional alignment as essential for safety, utility, and user satisfaction.",
+            "key_points": [
+                {
+                    "text": "Generic alignment to aggregate preferences overlooks individual traits and organisational requirements.",
+                    "papers": [
+                        {
+                            "title": "Personality of AI",
+                            "year": 2023,
+                            "url": "https://arxiv.org/abs/2312.02998",
+                            "summary": "Argues for \u2018personality alignment\u2019 in organisational settings and raises questions about adapting human personality tests for AI.",
+                            "citation_reason": "Provides early conceptual evidence that one-size-fits-all alignment is insufficient."
+                        },
+                        {
+                            "title": "Dynamic Generation of Personalities with Large Language Models",
+                            "year": 2024,
+                            "url": "https://arxiv.org/abs/2404.07084",
+                            "summary": "Introduces Hyper-network-based personality generation and a new metric grounded in Big-Five theory.",
+                            "citation_reason": "Demonstrates empirical demand for fine-grained personality control."
+                        }
+                    ]
+                },
+                {
+                    "text": "Over-alignment can reduce diversity and expressive capacity, motivating conditional rather than static alignment.",
+                    "papers": [
+                        {
+                            "title": "Detecting Mode Collapse in Language Models via Narration",
+                            "year": 2024,
+                            "url": "https://arxiv.org/abs/2402.04477",
+                            "summary": "Shows that successive GPT-3 versions suffer mode collapse, limiting their ability to assume multiple authorial voices.",
+                            "citation_reason": "Highlights the risk of losing persona diversity under strong alignment objectives."
+                        },
+                        {
+                            "title": "PLMM: Personal Large Language Models on Mobile Devices",
+                            "year": 2024,
+                            "url": "https://arxiv.org/abs/2309.14726",
+                            "summary": "Advocates privacy-preserving, on-device LLMs tailored to personal data and introduces personal/expert/traditional model tiers.",
+                            "citation_reason": "Adds privacy and deployment-level motivation for personalised models."
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "number": 2,
+            "title": "Taxonomy and Categorisation",
+            "outline": "Organises existing work by the nature of user preference capture, adaptation granularity, and representational focus (persona vs evidence).",
+            "key_points": [
+                {
+                    "text": "Learning-centric taxonomy: vanilla RLHF vs multi-objective RL and user-conditioned RL frameworks.",
+                    "papers": [
+                        {
+                            "title": "Personalized Language Modeling from Personalized Human Feedback",
+                            "year": 2024,
+                            "url": "https://arxiv.org/abs/2402.05133",
+                            "summary": "Proposes P-RLHF that jointly trains a lightweight user model with the LLM for scalable preference conditioning.",
+                            "citation_reason": "Represents the emerging class of user-conditioned RL alignment approaches."
+                        },
+                        {
+                            "title": "Personalized Soups: Personalized Large Language Model Alignment via Post-hoc Parameter Merging",
+                            "year": 2023,
+                            "url": "https://arxiv.org/abs/2310.11564",
+                            "summary": "Treats alignment as multi-objective RL and merges individually fine-tuned models in a parameter \u2018soup\u2019.",
+                            "citation_reason": "Illustrates post-training composition strategies within the taxonomy."
+                        }
+                    ]
+                },
+                {
+                    "text": "Representation-centric taxonomy: explicit personality modelling versus evidence-based trait recognition.",
+                    "papers": [
+                        {
+                            "title": "Personality of AI",
+                            "year": 2023,
+                            "url": "https://arxiv.org/abs/2312.02998",
+                            "summary": "Positions explicit personality tests as a mechanism for controlled AI persona shaping.",
+                            "citation_reason": "Defines the explicit-persona branch of personalisation research."
+                        },
+                        {
+                            "title": "Revealing Personality Traits: A New Benchmark Dataset for Explainable Personality Recognition on Dialogues",
+                            "year": 2024,
+                            "url": "https://arxiv.org/abs/2409.19723",
+                            "summary": "Introduces the PersonalityEvd dataset and CoPE framework linking dialogue evidence to personality states.",
+                            "citation_reason": "Represents the evidence-centred, explainable alignment perspective."
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "number": 3,
+            "title": "Methods and Algorithmic Approaches",
+            "outline": "Compares concrete techniques used to personalise and conditionally align LLMs, analysing their trade-offs in scalability, privacy, and performance.",
+            "key_points": [
+                {
+                    "text": "Post-hoc parameter merging enables efficient many-user personalisation without per-user inference overhead.",
+                    "papers": [
+                        {
+                            "title": "Personalized Soups: Personalized Large Language Model Alignment via Post-hoc Parameter Merging",
+                            "year": 2023,
+                            "url": "https://arxiv.org/abs/2310.11564",
+                            "summary": "Shows distributed fine-tuning along preference dimensions and merges them into a single model with minimal loss.",
+                            "citation_reason": "State-of-the-art for scalable, multi-user alignment."
+                        }
+                    ]
+                },
+                {
+                    "text": "Joint user-model and LLM training (P-RLHF) captures both explicit textual prompts and implicit feedback.",
+                    "papers": [
+                        {
+                            "title": "Personalized Language Modeling from Personalized Human Feedback",
+                            "year": 2024,
+                            "url": "https://arxiv.org/abs/2402.05133",
+                            "summary": "Employs a lightweight user embedding network optimised alongside the policy model via RLHF.",
+                            "citation_reason": "Demonstrates fine-grained conditioning during reinforcement learning."
+                        }
+                    ]
+                },
+                {
+                    "text": "On-device distillation with encrypted personal data provides privacy-aware adaptation paths.",
+                    "papers": [
+                        {
+                            "title": "PLMM: Personal Large Language Models on Mobile Devices",
+                            "year": 2024,
+                            "url": "https://arxiv.org/abs/2309.14726",
+                            "summary": "Distils global models into smaller personal models and secures user inputs through encryption pipelines.",
+                            "citation_reason": "Central to privacy-first architectural choices; justified cross-section reuse."
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "number": 4,
+            "title": "Evaluation and Benchmarks",
+            "outline": "Surveys datasets, metrics, and analysis protocols that quantify alignment quality, preference satisfaction, and diversity preservation.",
+            "key_points": [
+                {
+                    "text": "Explainable personality datasets facilitate evidence-grounded evaluation of trait recognition and alignment.",
+                    "papers": [
+                        {
+                            "title": "Revealing Personality Traits: A New Benchmark Dataset for Explainable Personality Recognition on Dialogues",
+                            "year": 2024,
+                            "url": "https://arxiv.org/abs/2409.19723",
+                            "summary": "Provides the PersonalityEvd dataset and evidence-linked metrics for personality state and trait prediction.",
+                            "citation_reason": "Serves as a benchmark for explainable alignment effectiveness."
+                        }
+                    ]
+                },
+                {
+                    "text": "Diversity and mode-collapse metrics reveal unintended side-effects of strong alignment objectives.",
+                    "papers": [
+                        {
+                            "title": "Detecting Mode Collapse in Language Models via Narration",
+                            "year": 2024,
+                            "url": "https://arxiv.org/abs/2402.04477",
+                            "summary": "Introduces authorship-style metrics to detect loss of persona variability post-alignment.",
+                            "citation_reason": "Adds critical diagnostic tooling for conditional alignment evaluation."
+                        },
+                        {
+                            "title": "Personalized Language Modeling from Personalized Human Feedback",
+                            "year": 2024,
+                            "url": "https://arxiv.org/abs/2402.05133",
+                            "summary": "Presents quantitative user-preference adherence metrics across tasks and users.",
+                            "citation_reason": "Demonstrates pragmatic metrics for preference satisfaction."
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "number": 5,
+            "title": "Open Challenges and Future Directions",
+            "outline": "Identifies persistent gaps\u2014scalability, privacy, fairness, and diversity\u2014and outlines promising research trajectories.",
+            "key_points": [
+                {
+                    "text": "Scaling to millions of users while preserving privacy and computational efficiency.",
+                    "papers": [
+                        {
+                            "title": "PLMM: Personal Large Language Models on Mobile Devices",
+                            "year": 2024,
+                            "url": "https://arxiv.org/abs/2309.14726",
+                            "summary": "Discusses device-level resource limits and encryption challenges for widespread personalisation.",
+                            "citation_reason": "Highlights real-world deployment barriers and research needs."
+                        },
+                        {
+                            "title": "Personalized Language Modeling from Personalized Human Feedback",
+                            "year": 2024,
+                            "url": "https://arxiv.org/abs/2402.05133",
+                            "summary": "Notes open issues in user-embedding generalisation and feedback sparsity.",
+                            "citation_reason": "Points to future work on efficient, implicit preference modelling."
+                        }
+                    ]
+                },
+                {
+                    "text": "Balancing alignment strength with creativity, fairness, and persona diversity.",
+                    "papers": [
+                        {
+                            "title": "Detecting Mode Collapse in Language Models via Narration",
+                            "year": 2024,
+                            "url": "https://arxiv.org/abs/2402.04477",
+                            "summary": "Warns that over-alignment can harm multi-perspective narrative ability, calling for diversity-aware objectives.",
+                            "citation_reason": "Motivates research into diversity-preserving alignment techniques."
+                        },
+                        {
+                            "title": "Dynamic Generation of Personalities with Large Language Models",
+                            "year": 2024,
+                            "url": "https://arxiv.org/abs/2404.07084",
+                            "summary": "Suggests dynamic persona generation as a pathway to maintain variety while ensuring coherence.",
+                            "citation_reason": "Opens research into on-the-fly, context-adaptive personality conditioning."
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}

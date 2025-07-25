@@ -73,7 +73,7 @@ async def parse_queries_add_plan_prompt(state: LitState, *, config: Optional[Run
     prompt = cfg.research_prompt.format(
         topic=state["topic"],
         paper_recency=state["paper_recency"],
-        search_queries=queries_str,
+        search_queries=queries_str
     )
 
     messages = state["messages"]
@@ -101,6 +101,9 @@ async def plan_literature_review(state: LitState, *, config=None):
 
     return {"messages": messages + [ai_msg]}
 
+# TODO: use a helper agent / tool that verifies if the collected papers meet the conditions
+# and returns a response stating if one hsould continue or not
+
 
 async def reflect_on_papers(state: LitState, *, config: Optional[RunnableConfig] = None) -> dict:
     """AI-initiated reflection step to analyze found papers and determine next actions."""
@@ -108,19 +111,24 @@ async def reflect_on_papers(state: LitState, *, config: Optional[RunnableConfig]
     
     # Create reflection prompt
     reflection_content = cfg.reflection_prompt.format(
-        topic=state.get("topic")
+        topic=state.get("topic"),
+        paper_count=cfg.paper_count
     )
-    reflection_msg = AIMessage(content=reflection_content)
+    reflection_msg = HumanMessage(content=reflection_content)
     
     # Use text LLM for reflection (no tools needed)
-    llm = get_text_llm(cfg=cfg)
+    llm = get_orchestrator_llm(cfg=cfg)
     
     messages = state["messages"] + [reflection_msg]
     ai_msg = await llm.ainvoke(messages)
+
+    # This prompt helps the lm decide on the next step.
+    next_step_prompt = cfg.reflection_next_step_prompt.format()
+    next_step_msg = HumanMessage(content=next_step_prompt)
     
     print("Executed reflection on found papers.\n")
     
-    return {"messages": messages + [ai_msg]}
+    return {"messages": messages + [ai_msg, next_step_msg]}
 
 
 async def parse_plan(state: LitState, *, config: Optional[RunnableConfig] = None) -> dict:
@@ -146,7 +154,7 @@ async def parse_plan(state: LitState, *, config: Optional[RunnableConfig] = None
     with open(plan_path, "w") as f:
         json.dump(plan, f, indent=4)
 
-    print(f"Saved plan with id {hash} at {plan_path}.\n")
+    print(f"Saved plan at {plan_path}.\n")
 
     return {
         "plan": plan,
