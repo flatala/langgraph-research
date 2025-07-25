@@ -26,21 +26,25 @@ async def decide_on_start_stage(state: LitState, *, config: Optional[RunnableCon
         return "start_from_scratch"
 
 
-# TODO: add a system prompt + human prompt and use both
 def append_system_prompt(state: LitState, *, config=None):
     cfg = Configuration.from_runnable_config(config)
 
-    prompt = cfg.query_refinement_prompt.format(
+    # Add system prompt
+    system_msg = SystemMessage(content=cfg.system_prompt)
+    
+    # Add user prompt for query refinement
+    user_prompt = cfg.query_refinement_prompt.format(
         query_count=cfg.refined_query_count,
         topic=state.get("topic"),
     )
+    user_msg = HumanMessage(content=user_prompt)
 
     messages = state["messages"]
-    new_msg = HumanMessage(content=prompt)
+    new_messages = messages + [system_msg, user_msg]
 
-    print("Appended problem statement refinement prompt.\n")
+    print("Appended system prompt and problem statement refinement prompt.\n")
 
-    return {"messages": messages + [new_msg]}
+    return {"messages": new_messages}
 
 
 async def refine_problem_statement(state: LitState, *, config: Optional[RunnableConfig] = None) -> dict:
@@ -95,6 +99,27 @@ async def plan_literature_review(state: LitState, *, config=None):
 
     print("Executed a planning step.\n")
 
+    return {"messages": messages + [ai_msg]}
+
+
+async def reflect_on_papers(state: LitState, *, config: Optional[RunnableConfig] = None) -> dict:
+    """AI-initiated reflection step to analyze found papers and determine next actions."""
+    cfg = Configuration.from_runnable_config(config)
+    
+    # Create reflection prompt
+    reflection_content = cfg.reflection_prompt.format(
+        topic=state.get("topic")
+    )
+    reflection_msg = AIMessage(content=reflection_content)
+    
+    # Use text LLM for reflection (no tools needed)
+    llm = get_text_llm(cfg=cfg)
+    
+    messages = state["messages"] + [reflection_msg]
+    ai_msg = await llm.ainvoke(messages)
+    
+    print("Executed reflection on found papers.\n")
+    
     return {"messages": messages + [ai_msg]}
 
 

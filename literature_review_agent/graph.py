@@ -11,7 +11,8 @@ from literature_review_agent.nodes.reserch_plan_nodes import (
     load_cached_plan,
     append_system_prompt,
     refine_problem_statement,
-    parse_queries_add_plan_prompt
+    parse_queries_add_plan_prompt,
+    reflect_on_papers
 )
 
 workflow = StateGraph(LitState)
@@ -24,6 +25,7 @@ workflow.add_node("tools_1", AsyncToolNode([human_assistance]))
 workflow.add_node("parse_queries_add_plan_prompt", parse_queries_add_plan_prompt)
 workflow.add_node("plan_literature_review", plan_literature_review)
 workflow.add_node("tools_2", AsyncToolNode([arxiv_search]))
+workflow.add_node("reflect_on_papers", reflect_on_papers)
 workflow.add_node("parse_plan", parse_plan)
 workflow.add_node("prepare_rag_knowledge_base", prepare_rag_knowledge_base)
 workflow.add_node("set_workflow_completed_flag", set_workflow_completed_flag)
@@ -51,13 +53,14 @@ workflow.add_edge("tools_1", "refine_problem_statement")
 # Go to the planning phase
 workflow.add_edge("parse_queries_add_plan_prompt", "plan_literature_review")
 
-# Loop between tool calls and ai model refinement
+# Loop between tool calls and ai model refinement with reflection
 workflow.add_conditional_edges(
     "plan_literature_review",
     route_tools,
     {"tools": "tools_2", "__end__": "parse_plan"},
 )
-workflow.add_edge("tools_2", "plan_literature_review")
+workflow.add_edge("tools_2", "reflect_on_papers")
+workflow.add_edge("reflect_on_papers", "plan_literature_review")
 
 # Parse the plan, save json, setup rag
 workflow.add_edge("parse_plan", "prepare_rag_knowledge_base")

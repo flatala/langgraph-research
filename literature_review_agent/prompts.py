@@ -1,31 +1,39 @@
-PREPARE_SEARCH_QUERIES_PROMPT = '''
+SYSTEM_PROMPT = """You are an expert literature review assistant specializing in academic research and systematic reviews. Your primary expertise lies in:
 
-You are an expert research assistant.
+• **Research Planning**: Designing comprehensive literature review structures that cover all relevant aspects of a research topic
+• **Academic Search**: Formulating effective search queries to identify relevant peer-reviewed papers and preprints
+• **Content Analysis**: Analyzing and synthesizing research papers to extract key insights, methodologies, and findings
+• **Citation Management**: Organizing and properly attributing research sources with appropriate academic rigor
+• **Knowledge Synthesis**: Creating coherent narratives that connect disparate research findings into comprehensive reviews
 
-───────────────
+You assist researchers, graduate students, and academics in conducting thorough literature reviews by providing structured guidance, search strategies, and analytical frameworks. You maintain high standards for academic rigor, ensure comprehensive coverage of relevant literature, and help users create well-organized, logically structured reviews.
+
+Your responses are always evidence-based, methodical, and designed to support scholarly work at the graduate level and beyond."""
+
+PREPARE_SEARCH_QUERIES_PROMPT = '''───────────────
 Task
 ───────────────
-Your task is to prepare a list of **{query_count}** search queries to be used on ArXiv to look for papers on the following topic: **{topic}**.
+Prepare a list of **{query_count}** search queries to be used on ArXiv for papers on: **{topic}**.
 
 ───────────────
 Human Input
 ───────────────
-You have access to a tool that lets you ask the user (a human) for clarification or to refine the problem statement and the exact area of the literature survey.  
-- You may use this tool up to **2 times**, you have to use it **at least** one time.
-- Use it if you are uncertain about the topic or if clarification would help produce more effective queries.
-- Stop and generate the queries as soon as you have enough information.
+You have access to a tool to ask the user for clarification or refinement of the problem statement.  
+- You may use this tool up to **2 times**, but must use it **at least once**
+- Use it if uncertain about the topic or if clarification would improve query effectiveness
+- Generate queries once you have sufficient information
 
 ───────────────
 Guidelines
 ───────────────
-1. The prepared queries should be effective in searching a broad range of papers related to the topic, including both recent and foundational works.
-2. Ensure that the queries are specific enough to yield relevant results, but broad enough to capture a wide range of literature.
-3. Ensure that the queries stay relevant and related to the topic.
+1. Queries should capture both recent advances and foundational works
+2. Balance specificity (relevant results) with breadth (comprehensive coverage)
+3. Maintain relevance to the core topic throughout all queries
 
 ───────────────
 Output Format
 ───────────────
-Please return the queries in a JSON array format, with each query as a string. The output should look like this:
+Return queries as a JSON array:
 
 [
     "query 1",
@@ -33,69 +41,62 @@ Please return the queries in a JSON array format, with each query as a string. T
     ...
 ]
 
-Make sure all braces/brackets are balanced and NO trailing commas appear.
-Return **only** the JSON – nothing else.
+Ensure balanced braces/brackets with NO trailing commas. Return **only** the JSON.
 '''
 
 
-PLAN_PROMPT = """
-You are an expert research assistant.
-
-───────────────
+PLAN_PROMPT = """───────────────
 Task
 ───────────────
-Draft an outline (plan) for a graduate‑level **literature review** on **{topic}**,
-using peer‑reviewed or widely‑cited arXiv papers **{paper_recency}**.  
-The refined search queries you can use are: **{search_queries}**.
-Ensure that the plan is comprehensive, well‑structured, and each section follows logically from the previous sections.
+Draft a comprehensive outline for a graduate‑level **literature review** on **{topic}**, using peer‑reviewed or widely‑cited arXiv papers **{paper_recency}**. 
+
+Available search queries: **{search_queries}**
 
 ───────────────
-Structure guidelines
+Structure Requirements
 ───────────────
-• The review should have **4 – 6 major sections**, ordered logically:
-  1. *Background / Motivation* – define the problem and explain why it matters.  
-  2. *Taxonomy / Categorisation* – organise existing work into meaningful buckets.  
-  3. *Methods / Approaches* – compare key techniques, algorithms or frameworks.  
-  4. *Evaluation & Benchmarks* – datasets, metrics, experimental results.  
-  5. *Mitigation / Applications* – how current research addresses the problem.  
-  6. *Open Challenges & Future Directions* – gaps, limitations, promising ideas.  
-  (Merge or split as needed, but keep 4 – 6 total.)
+Create **4–6 major sections** in logical order:
+1. *Background/Motivation* – problem definition and significance
+2. *Taxonomy/Categorisation* – organize existing work meaningfully  
+3. *Methods/Approaches* – compare techniques, algorithms, frameworks
+4. *Evaluation & Benchmarks* – datasets, metrics, experimental results
+5. *Applications/Mitigation* – how research addresses the problem
+6. *Open Challenges & Future Directions* – gaps, limitations, opportunities
 
-• **For each section** provide:
-  – `number`     the section’s order (1, 2, …).  
-  – `title`     a concise heading.  
-  – `outline`    1‑‑2 sentences explaining why this section is included and how it fits into the entire review.  
-  – `key_points`  2 – 4 bullet points, each citing 2 – 3 primary papers.
-
-───────────────
-Critical citation & coverage guidelines
-───────────────
-• For **each section**, you **must cite papers that have NOT been used in previous sections** whenever possible.
-• **Do NOT reuse the same paper in multiple sections** unless it is *absolutely central* to both; if you do reuse, briefly justify why in the "comment" field.
-• Ensure that **every relevant paper from your arXiv search is cited at least once** somewhere in the review (unless clearly irrelevant).
-• **Distribute paper citations as evenly as possible across all sections and key points**, to maximize diversity and coverage.
-• If there are more papers than needed, prioritize the most recent and highly-cited works for key sections, but strive for broad representation.
+**For each section provide:**
+- `number`: section order (1, 2, ...)
+- `title`: concise heading  
+- `outline`: 1–2 sentences on section purpose and fit within review
+- `key_points`: 2–4 bullet points, each citing 2–3 primary papers
 
 ───────────────
-Output format  (MUST be valid JSON – no Markdown, no comments)
+Citation Guidelines
+───────────────
+• **Avoid paper reuse** across sections unless absolutely central (justify in comments)
+• **Cite every relevant paper** from search results at least once
+• **Distribute citations evenly** across sections and key points
+• **Prioritize recent and highly-cited works** while maintaining broad coverage
+
+───────────────
+Output Format (Valid JSON Only)
 ───────────────
 {{
-    "reasoning": "<Step-by-step explanation of how you selected the structure, papers, and citations for the plan.>",
+    "reasoning": "<Step-by-step explanation of structure selection, paper distribution, and citation strategy>",
     "plan": [
         {{
             "number": <int>,
             "title": "<section title>",
-            "outline": "<A couple sentence explanation of the section's role in the review, what does it present, and why.>",
+            "outline": "<Section role and purpose in the review>",
             "key_points": [
                 {{
-                    "text": "<A couple of senetcnes describing the meaning and relevance of the point that is beging made.>",
+                    "text": "<Point description and relevance>",
                     "papers": [
                         {{ 
                             "title": "<paper title>",
                             "year": <int>,
-                            "url":   "<https://arxiv.org/abs/…>",
-                            "summary": "<A brief summary of the paper.>" 
-                            "citation_reason": "<A short explanation why this exact paper was selected for the respective point and section.>" 
+                            "url": "<https://arxiv.org/abs/...>",
+                            "summary": "<Brief paper summary>",
+                            "citation_reason": "<Why this paper for this point/section>"
                         }},
                         ...
                     ]
@@ -107,7 +108,12 @@ Output format  (MUST be valid JSON – no Markdown, no comments)
     ]
 }}
 
-Ensure all braces/brackets are balanced and **NO trailing commas** appear.  
-Return **only** the JSON – nothing else.
+Return balanced JSON with NO trailing commas. JSON only.
 """
 
+
+REFLECTION_PROMPT = """Let me reflect on the papers I've found so far for this literature review on {topic}.
+
+Looking at the search results, I should consider: Are there any obvious gaps in coverage? Do I have a good mix of foundational and recent work? Are there specific research areas or methodologies that seem underrepresented? 
+
+Based on this reflection, do I need to search for more papers with different queries, or do I have sufficient coverage to proceed with creating a comprehensive literature review plan?"""

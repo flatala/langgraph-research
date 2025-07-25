@@ -27,6 +27,13 @@ class Configuration:
 
     # PROMPTS
 
+    system_prompt: str = field(
+        default=prompts.SYSTEM_PROMPT,
+        metadata={
+            "description": "The system prompt that establishes the assistant's role as a literature review specialist."
+        },
+    )
+
     query_refinement_prompt: str = field(
         default=prompts.PREPARE_SEARCH_QUERIES_PROMPT,
         metadata={
@@ -40,6 +47,14 @@ class Configuration:
         metadata={
             "description": "The prompt template to use for the agent's literature review planning phase. "
             "Expects three f-string arguments: {topic}, {paper_recency}, and {search_queries}."
+        },
+    )
+
+    reflection_prompt: str = field(
+        default=prompts.REFLECTION_PROMPT,
+        metadata={
+            "description": "The prompt template for AI-initiated reflection on found papers. "
+            "Expects one f-string argument: {topic}."
         },
     )
 

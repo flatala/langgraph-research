@@ -1,0 +1,259 @@
+{
+    "reasoning": "The outline follows a classic top-down structure used in graduate-level reviews. Six sections move from broad context (Background) through organisation of the field (Taxonomy), technical detail (Methods), empirical practice (Evaluation), real-world uptake (Applications/Mitigation) and finally forward-looking discussion (Open Challenges). 11 distinct, highly-cited arXiv papers published \u2265 2023 are distributed so every paper is cited at least once and no section is dominated by repeats. Two works (PLMM, MetaAligner) are intentionally reused across multiple sections because they are pivotal: PLMM is the first full pipeline for privacy-preserving personalised LLMs, while MetaAligner is the only method offering generalisable multi-objective alignment\u2014hence their presence in Background/Methods/Applications and Taxonomy/Methods/Challenges respectively is explicitly justified. All other papers appear exactly once, achieving balanced coverage of personality alignment, multilingual safety, code-switching, adapter approaches, memory-augmented web agents, and explainable benchmarks.",
+    "plan": [
+        {
+            "number": 1,
+            "title": "Background and Motivation",
+            "outline": "Defines personalisation and conditional alignment, explains why they matter for privacy, usability, safety and global inclusivity, and highlights recent triggers such as on-device deployment and personality-rich interaction.",
+            "key_points": [
+                {
+                    "text": "Privacy-preserving on-device personalisation demonstrates the shift from universal to user-centric LLMs.",
+                    "papers": [
+                        {
+                            "title": "PLMM: Personal Large Language Models on Mobile Devices",
+                            "year": 2024,
+                            "url": "http://arxiv.org/abs/2309.14726v2",
+                            "summary": "Distils large models into lightweight personal LLMs that encrypt user input, run locally and adapt to private preferences in real-time.",
+                            "citation_reason": "Illustrates the core motivation of safeguarding privacy while achieving fine-grained personalisation."
+                        }
+                    ]
+                },
+                {
+                    "text": "Human-like conversation requires dynamic personality modelling and safe behaviour across languages.",
+                    "papers": [
+                        {
+                            "title": "Dynamic Generation of Personalities with Large Language Models",
+                            "year": 2024,
+                            "url": "http://arxiv.org/abs/2404.07084v1",
+                            "summary": "Uses hypernetworks and Big-Five embeddings to generate context-sensitive personalities, improving engagement.",
+                            "citation_reason": "Shows the experiential value of conditional personality alignment."
+                        },
+                        {
+                            "title": "Multilingual Blending: LLM Safety Alignment Evaluation with Language Mixture",
+                            "year": 2024,
+                            "url": "http://arxiv.org/abs/2407.07342v1",
+                            "summary": "Reveals how mixed-language prompts can bypass safety filters, stressing the need for robust multilingual alignment.",
+                            "citation_reason": "Frames safety-centric motivation in a global, multilingual landscape."
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "number": 2,
+            "title": "Taxonomy and Categorisation of Existing Work",
+            "outline": "Proposes a taxonomy along two axes: (a) adaptation granularity\u2014language, user profile, personality, multi-objective; (b) temporal mode\u2014static fine-tune vs dynamic on-the-fly alignment.",
+            "key_points": [
+                {
+                    "text": "Static adaptation approaches: language transfer and code-switching specialisation.",
+                    "papers": [
+                        {
+                            "title": "Efficiently Adapting Pretrained Language Models To New Languages",
+                            "year": 2023,
+                            "url": "http://arxiv.org/abs/2311.05741v2",
+                            "summary": "Introduces tokenizer extension and data-mixing recipes that adapt English LLMs to low-resource languages without catastrophic forgetting.",
+                            "citation_reason": "Represents static, language-level personalisation techniques."
+                        },
+                        {
+                            "title": "BA-MoE: Boundary-Aware Mixture-of-Experts Adapter for Code-Switching Speech Recognition",
+                            "year": 2023,
+                            "url": "http://arxiv.org/abs/2310.02629v2",
+                            "summary": "Uses language-specific adapters and boundary-aware gating to handle Mandarin-English code-switching.",
+                            "citation_reason": "Illustrates domain-specific static alignment for multilingual speech."
+                        }
+                    ]
+                },
+                {
+                    "text": "Dynamic or interaction-based personalisation: personality-conditioned and multi-objective alignment.",
+                    "papers": [
+                        {
+                            "title": "Orca: Enhancing Role-Playing Abilities of Large Language Models by Integrating Personality Traits",
+                            "year": 2024,
+                            "url": "http://arxiv.org/abs/2411.10006v1",
+                            "summary": "Pipeline for inferring user Big-Five traits and fine-tuning LLMs with personality-conditioned prompts.",
+                            "citation_reason": "Embodies dynamic persona alignment category."
+                        },
+                        {
+                            "title": "MetaAligner: Towards Generalizable Multi-Objective Alignment of Language Models",
+                            "year": 2024,
+                            "url": "http://arxiv.org/abs/2403.17141v3",
+                            "summary": "Provides policy-agnostic alignment that flexibly swaps objectives via prompt-level descriptions.",
+                            "citation_reason": "Defines a category of plug-and-play multi-objective conditional alignment."
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "number": 3,
+            "title": "Methods and Algorithmic Approaches",
+            "outline": "Compares concrete techniques for achieving personalisation and alignment, spanning model distillation, modular adapters, hypernetwork conditioning and low-resource multilingual instruction tuning.",
+            "key_points": [
+                {
+                    "text": "Resource-constrained personal LLMs: distillation, encryption and on-device inference.",
+                    "papers": [
+                        {
+                            "title": "PLMM: Personal Large Language Models on Mobile Devices",
+                            "year": 2024,
+                            "url": "http://arxiv.org/abs/2309.14726v2",
+                            "summary": "Details compression plus privacy layers enabling per-user models on edge hardware.",
+                            "citation_reason": "Central technical recipe for private, personalised deployment (reused; foundational)."
+                        }
+                    ]
+                },
+                {
+                    "text": "Adapter-based and universal modules for scalable multilingual alignment.",
+                    "papers": [
+                        {
+                            "title": "Language-Universal Adapter Learning with Knowledge Distillation for End-to-End Multilingual Speech Recognition",
+                            "year": 2023,
+                            "url": "http://arxiv.org/abs/2303.01249v1",
+                            "summary": "Combines language-specific and universal adapters with online knowledge distillation to reduce parameter growth.",
+                            "citation_reason": "Shows how modular design supports rapid, scalable alignment."
+                        },
+                        {
+                            "title": "Multilingual Instruction Tuning With Just a Pinch of Multilinguality",
+                            "year": 2024,
+                            "url": "http://arxiv.org/abs/2401.01854v4",
+                            "summary": "Finds that 40 multilingual examples inside an English tuning set drastically boost cross-lingual instruction following.",
+                            "citation_reason": "Demonstrates data-efficient alignment via minimal multilingual supervision."
+                        }
+                    ]
+                },
+                {
+                    "text": "Hypernetwork and meta-learning for personality and multi-objective conditioning.",
+                    "papers": [
+                        {
+                            "title": "Dynamic Generation of Personalities with Large Language Models",
+                            "year": 2024,
+                            "url": "http://arxiv.org/abs/2404.07084v1",
+                            "summary": "Generates personality-specific parameters via hypernetworks and evaluates with a novel metric.",
+                            "citation_reason": "Technical exemplar of dynamic persona conditioning (reused; method-focused)."
+                        },
+                        {
+                            "title": "MetaAligner: Towards Generalizable Multi-Objective Alignment of Language Models",
+                            "year": 2024,
+                            "url": "http://arxiv.org/abs/2403.17141v3",
+                            "summary": "Uses weak-to-strong correction and prompt-driven objective reformulation for plug-and-play alignment.",
+                            "citation_reason": "Illustrates meta-learning style conditional alignment (reused; algorithmic depth)."
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "number": 4,
+            "title": "Evaluation and Benchmarks",
+            "outline": "Surveys datasets and metrics that quantify success in personalisation and alignment, covering explainable personality datasets, multilingual safety stress tests and task-oriented personalised agent suites.",
+            "key_points": [
+                {
+                    "text": "Explainability-centric personality benchmarks and evidence-based metrics.",
+                    "papers": [
+                        {
+                            "title": "Revealing Personality Traits: A New Benchmark Dataset for Explainable Personality Recognition on Dialogues",
+                            "year": 2024,
+                            "url": "http://arxiv.org/abs/2409.19723v1",
+                            "summary": "Releases PersonalityEvd dataset with chain-of-evidence labels for state\u2192trait reasoning.",
+                            "citation_reason": "Grounds evaluation of personality-aligned models in transparent evidence."
+                        }
+                    ]
+                },
+                {
+                    "text": "Safety and multilingual stress-testing of alignment mechanisms.",
+                    "papers": [
+                        {
+                            "title": "Multilingual Blending: LLM Safety Alignment Evaluation with Language Mixture",
+                            "year": 2024,
+                            "url": "http://arxiv.org/abs/2407.07342v1",
+                            "summary": "Introduces language-mixing prompts that significantly raise jailbreak rates, offering a rigorous alignment test.",
+                            "citation_reason": "Provides an adversarial benchmark for conditional safety alignment (reused; evaluation-centric)."
+                        },
+                        {
+                            "title": "Large Language Models Empowered Personalized Web Agents",
+                            "year": 2025,
+                            "url": "http://arxiv.org/abs/2410.17236v2",
+                            "summary": "Creates PersonalWAB with user profiles, history and multi-task evaluation for personalised web automation.",
+                            "citation_reason": "Extends evaluation to practical, multi-step personalised task execution."
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "number": 5,
+            "title": "Applications and Mitigation Strategies",
+            "outline": "Explores how personalised and conditionally aligned LLMs are deployed in practical scenarios and how alignment mitigates misuse, focusing on web agents, speech interfaces and privacy-sensitive mobile applications.",
+            "key_points": [
+                {
+                    "text": "Personalised web automation and task completion through memory-augmented agents.",
+                    "papers": [
+                        {
+                            "title": "Large Language Models Empowered Personalized Web Agents",
+                            "year": 2025,
+                            "url": "http://arxiv.org/abs/2410.17236v2",
+                            "summary": "Combines retrieval of user history with alignment fine-tuning to execute customised web actions.",
+                            "citation_reason": "Demonstrates tangible user benefit and mitigation of instruction ambiguity."
+                        }
+                    ]
+                },
+                {
+                    "text": "Speech and mobile applications that balance privacy, latency and adaptation.",
+                    "papers": [
+                        {
+                            "title": "BA-MoE: Boundary-Aware Mixture-of-Experts Adapter for Code-Switching Speech Recognition",
+                            "year": 2023,
+                            "url": "http://arxiv.org/abs/2310.02629v2",
+                            "summary": "Delivers 16.5 % error reduction in code-switching ASR via language-aware adapters.",
+                            "citation_reason": "Showcases mitigation of code-switching brittleness in speech interfaces."
+                        },
+                        {
+                            "title": "PLMM: Personal Large Language Models on Mobile Devices",
+                            "year": 2024,
+                            "url": "http://arxiv.org/abs/2309.14726v2",
+                            "summary": "Executes personalised inference entirely on device, preventing data leakage.",
+                            "citation_reason": "Illustrates privacy-mitigating deployment of personalised models (reused; application focus)."
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "number": 6,
+            "title": "Open Challenges and Future Directions",
+            "outline": "Synthesises limitations such as continual adaptation, cross-cultural fairness, evaluation scalability, and balancing privacy with performance, offering research trajectories for more trustworthy, adaptive LLMs.",
+            "key_points": [
+                {
+                    "text": "Generalisation to unseen objectives and continual user preference drift.",
+                    "papers": [
+                        {
+                            "title": "MetaAligner: Towards Generalizable Multi-Objective Alignment of Language Models",
+                            "year": 2024,
+                            "url": "http://arxiv.org/abs/2403.17141v3",
+                            "summary": "Highlights the cost of re-alignment for every new policy model and proposes prompt-level objective reformulation.",
+                            "citation_reason": "Identifies scalability and continual learning as persistent gaps (reused; forward-looking)."
+                        }
+                    ]
+                },
+                {
+                    "text": "Robust, explainable and multilingual safety alignment under adversarial or mixed-language input.",
+                    "papers": [
+                        {
+                            "title": "Revealing Personality Traits: A New Benchmark Dataset for Explainable Personality Recognition on Dialogues",
+                            "year": 2024,
+                            "url": "http://arxiv.org/abs/2409.19723v1",
+                            "summary": "Calls for improved reasoning transparency and better evidence collection.",
+                            "citation_reason": "Stresses future need for interpretability at scale (reused; challenges)."
+                        },
+                        {
+                            "title": "Multilingual Blending: LLM Safety Alignment Evaluation with Language Mixture",
+                            "year": 2024,
+                            "url": "http://arxiv.org/abs/2407.07342v1",
+                            "summary": "Shows current safeguards falter under language mixing, urging stronger cross-lingual defences.",
+                            "citation_reason": "Pinpoints an unsolved problem in safety-critical conditional alignment (reused; challenges)."
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}
