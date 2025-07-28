@@ -70,4 +70,4 @@ workflow.add_edge("set_workflow_completed_flag", END)
 
 # compile with memory
 memory = MemorySaver()
-graph = workflow.compile(checkpointer=memory)
+planning_graph = workflow.compile(checkpointer=memory)

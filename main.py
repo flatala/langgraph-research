@@ -3,7 +3,9 @@ from langgraph.types import Command
 
 from agents.shared.state import LitState, CachingOptions
 from agents.planning_agent.utils.logging_utils import print_plan
-from agents.planning_agent.graph import graph
+from agents.graph import graph
+
+from agents.planning_agent.graph import planning_graph
 
 from dotenv import load_dotenv
 from pathlib import Path
@@ -57,16 +59,20 @@ if __name__ == "__main__":
     )
 
     thread_id = str(uuid.uuid4())
-    config = RunnableConfig(
+    graph_config = RunnableConfig(
         recursion_limit=50,           
         configurable={"thread_id": thread_id}
     )
 
     img_bytes = graph.get_graph().draw_mermaid_png()
-    with open("graph.png", "wb") as f:
+    with open("graph_diagrams/main_graph.png", "wb") as f:
         f.write(img_bytes)
 
-    final_state = asyncio.run(run_workflow_async(init_state, graph, config))
+    img_bytes = planning_graph.get_graph().draw_mermaid_png()
+    with open("graph_diagrams/planning_graph.png", "wb") as f:
+        f.write(img_bytes)
+
+    final_state = asyncio.run(run_workflow_async(init_state, graph, graph_config))
     if final_state["plan"] is None:
         print("No plan generated.")
         latest_msg = final_state["messages"][-1]
