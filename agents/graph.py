@@ -1,10 +1,10 @@
 from langgraph.graph import StateGraph, START, END
 from langgraph.checkpoint.memory import MemorySaver
 
-from agents.shared.state import LitState
+from agents.shared.state.main_state import AgentState
 from agents.planning_agent.graph import planning_graph
 
-workflow = StateGraph(LitState)
+workflow = StateGraph(AgentState)
 
 workflow.add_node("planning", planning_graph)
 

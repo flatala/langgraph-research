@@ -1,11 +1,10 @@
 from langchain_core.runnables import RunnableConfig
 from langgraph.types import Command
 
-from agents.shared.state import LitState, CachingOptions
+from agents.shared.state.main_state import AgentState, CachingOptions
 from agents.planning_agent.utils.logging_utils import print_plan
-from agents.graph import graph
-
 from agents.planning_agent.graph import planning_graph
+from agents.graph import graph
 
 from dotenv import load_dotenv
 from pathlib import Path
@@ -40,7 +39,7 @@ if __name__ == "__main__":
     TOPIC = 'Personalisation and conditional alignment of LLMs.'
     PAPER_RECENCY = 'after 2023'
 
-    init_state = LitState( 
+    init_state = AgentState( 
         # caching_options={
         #     "cached_plan_id": 'ac1f85e4-93a2526d-9f74ab7c-0bff1986',
         #     "cached_section_ids": None

@@ -1,9 +1,8 @@
 from langgraph.graph import StateGraph, START, END
 from langgraph.checkpoint.memory import MemorySaver
-from agents.shared.state import LitState
+from agents.shared.state.main_state import AgentState
 from agents.planning_agent.tools import arxiv_search, human_assistance
-from agents.planning_agent.nodes.rag_nodes import prepare_rag_knowledge_base
-from agents.planning_agent.nodes.general_nodes import AsyncToolNode, route_tools, set_workflow_completed_flag
+from agents.shared.nodes.general_nodes import AsyncToolNode, route_tools, set_workflow_completed_flag
 from agents.planning_agent.nodes.reserch_plan_nodes import (
     decide_on_start_stage, 
     plan_literature_review, 
@@ -15,7 +14,7 @@ from agents.planning_agent.nodes.reserch_plan_nodes import (
     reflect_on_papers
 )
 
-workflow = StateGraph(LitState)
+workflow = StateGraph(AgentState)
 
 # Define all nodes
 workflow.add_node("load_cached_plan", load_cached_plan)
@@ -27,7 +26,6 @@ workflow.add_node("plan_literature_review", plan_literature_review)
 workflow.add_node("tools_2", AsyncToolNode([arxiv_search]))
 workflow.add_node("reflect_on_papers", reflect_on_papers)
 workflow.add_node("parse_plan", parse_plan)
-workflow.add_node("prepare_rag_knowledge_base", prepare_rag_knowledge_base)
 workflow.add_node("set_workflow_completed_flag", set_workflow_completed_flag)
 
 # First decide on the initial starting stage
@@ -38,7 +36,7 @@ workflow.add_conditional_edges(
 )
 
 # If a cached plan is loaded, go directly to rag setup
-workflow.add_edge("load_cached_plan", "prepare_rag_knowledge_base")
+workflow.add_edge("load_cached_plan", "set_workflow_completed_flag")
 
 # if we do refinement, append system + user prompts
 workflow.add_edge("append_system_prompt", "refine_problem_statement")
@@ -64,8 +62,7 @@ workflow.add_edge("tools_2", "reflect_on_papers")
 workflow.add_edge("reflect_on_papers", "plan_literature_review")
 
 # Parse the plan, save json, setup rag
-workflow.add_edge("parse_plan", "prepare_rag_knowledge_base")
-workflow.add_edge("prepare_rag_knowledge_base", "set_workflow_completed_flag")
+workflow.add_edge("parse_plan", "set_workflow_completed_flag")
 workflow.add_edge("set_workflow_completed_flag", END)
 
 # compile with memory

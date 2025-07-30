@@ -2,7 +2,7 @@ from langchain_core.messages import ToolMessage
 from langgraph.graph import END
 from langchain_core.runnables import RunnableConfig
 
-from agents.shared.state import LitState
+from agents.shared.state.main_state import AgentState
 
 from typing import Optional
 import json
@@ -30,7 +30,7 @@ class AsyncToolNode:
         return {"messages": msgs + out}
     
 
-def route_tools(state: LitState, *, config: Optional[RunnableConfig] = None) -> dict:
+def route_tools(state: AgentState, *, config: Optional[RunnableConfig] = None) -> dict:
     """
     Use in the conditional_edge to route to the ToolNode if the last message
     has tool calls. Otherwise, route to the end.
@@ -45,7 +45,7 @@ def route_tools(state: LitState, *, config: Optional[RunnableConfig] = None) -> 
     return END
 
 
-def set_workflow_completed_flag(state: LitState, *, config: Optional[RunnableConfig] = None) -> dict:
+def set_workflow_completed_flag(state: AgentState, *, config: Optional[RunnableConfig] = None) -> dict:
     return {
         "completed": True
     }

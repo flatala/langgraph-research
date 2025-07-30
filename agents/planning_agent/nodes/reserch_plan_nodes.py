@@ -1,7 +1,8 @@
 from langchain_core.runnables import RunnableConfig
 from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
 
-from agents.shared.state import LitState, Plan, CachingOptions
+from agents.shared.state.main_state import AgentState, CachingOptions
+from agents.shared.state.planning_components import Plan
 from agents.shared.utils.llm_utils import get_text_llm, get_orchestrator_llm
 from agents.planning_agent.agent_config import PlanningAgentConfiguration as Configuration  
 from agents.planning_agent.tools import arxiv_search, human_assistance
@@ -17,7 +18,7 @@ import json
 PLAN_CACHE_PATH = 'cache/plans/'
 
 
-async def decide_on_start_stage(state: LitState, *, config: Optional[RunnableConfig] = None) -> dict:
+async def decide_on_start_stage(state: AgentState, *, config: Optional[RunnableConfig] = None) -> dict:
     if state["caching_options"] is not None and state["caching_options"]["cached_plan_id"] is not None:
         print("Using cached plan...\n")
         return "load_cached_plan"
@@ -26,7 +27,7 @@ async def decide_on_start_stage(state: LitState, *, config: Optional[RunnableCon
         return "start_from_scratch"
 
 
-def append_system_prompt(state: LitState, *, config=None):
+def append_system_prompt(state: AgentState, *, config=None):
     cfg = Configuration.from_runnable_config(config)
 
     # Add system prompt
@@ -47,7 +48,7 @@ def append_system_prompt(state: LitState, *, config=None):
     return {"messages": new_messages}
 
 
-async def refine_problem_statement(state: LitState, *, config: Optional[RunnableConfig] = None) -> dict:
+async def refine_problem_statement(state: AgentState, *, config: Optional[RunnableConfig] = None) -> dict:
     cfg = Configuration.from_runnable_config(config)
     llm = (
         get_text_llm(cfg=cfg)
@@ -63,7 +64,7 @@ async def refine_problem_statement(state: LitState, *, config: Optional[Runnable
     }
 
 
-async def parse_queries_add_plan_prompt(state: LitState, *, config: Optional[RunnableConfig] = None) -> dict:
+async def parse_queries_add_plan_prompt(state: AgentState, *, config: Optional[RunnableConfig] = None) -> dict:
     last_message: AIMessage = state.get("messages")[-1]
     queries: List[str] = json.loads(last_message.content.strip())
 
@@ -85,7 +86,7 @@ async def parse_queries_add_plan_prompt(state: LitState, *, config: Optional[Run
     }
 
 
-async def plan_literature_review(state: LitState, *, config=None):
+async def plan_literature_review(state: AgentState, *, config=None):
     cfg = Configuration.from_runnable_config(config)
 
     llm = (
@@ -105,7 +106,7 @@ async def plan_literature_review(state: LitState, *, config=None):
 # and returns a response stating if one hsould continue or not
 
 
-async def reflect_on_papers(state: LitState, *, config: Optional[RunnableConfig] = None) -> dict:
+async def reflect_on_papers(state: AgentState, *, config: Optional[RunnableConfig] = None) -> dict:
     """AI-initiated reflection step to analyze found papers and determine next actions."""
     cfg = Configuration.from_runnable_config(config)
     
@@ -131,7 +132,7 @@ async def reflect_on_papers(state: LitState, *, config: Optional[RunnableConfig]
     return {"messages": messages + [ai_msg, next_step_msg]}
 
 
-async def parse_plan(state: LitState, *, config: Optional[RunnableConfig] = None) -> dict:
+async def parse_plan(state: AgentState, *, config: Optional[RunnableConfig] = None) -> dict:
     """Process the plan to extract key points and papers."""
 
     last_message: AIMessage = state.get("messages")[-1]
@@ -161,7 +162,7 @@ async def parse_plan(state: LitState, *, config: Optional[RunnableConfig] = None
     }
 
 
-async def load_cached_plan(state: LitState, *, config: Optional[RunnableConfig] = None) -> dict:
+async def load_cached_plan(state: AgentState, *, config: Optional[RunnableConfig] = None) -> dict:
     caching_options: CachingOptions = state.get("caching_options")
     if caching_options and caching_options.get("cached_plan_id"):
         plan_id = caching_options["cached_plan_id"]

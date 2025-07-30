@@ -3,13 +3,14 @@ from langchain_community.document_loaders import ArxivLoader
 from langchain_community.vectorstores import FAISS
 from langchain_openai import OpenAIEmbeddings
 
-from agents.shared.state import LitState, Plan
+from agents.shared.state.main_state import AgentState
+from agents.shared.state.planning_components import Plan
 from agents.planning_agent.utils.document_utils import reduce_docs
 
 import re
 
 
-async def prepare_rag_knowledge_base(state: LitState, *, config=None) -> dict:
+async def prepare_rag_knowledge_base(state: AgentState, *, config=None) -> dict:
     print("Preparing the RAG setup...")
 
     # 1. Collect all unique arXiv URLs from the plan

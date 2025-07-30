@@ -1,5 +1,5 @@
 from langchain_core.messages import HumanMessage, AIMessage, ToolMessage
-from agents.shared.state import Plan
+from agents.shared.state.planning_components import Plan
 from textwrap import indent
 from typing import List
 
