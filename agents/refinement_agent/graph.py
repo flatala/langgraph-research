@@ -2,7 +2,7 @@ from langgraph.graph import StateGraph, START, END
 from langgraph.checkpoint.memory import MemorySaver
 
 from agents.shared.state.main_state import AgentState
-from agents.refinement_agent.nodes.refinement_nodes import (
+from agents.refinement_agent.nodes.state_management_nodes import (
     initialise_refinement_progress
 )
 
