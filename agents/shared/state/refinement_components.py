@@ -4,16 +4,18 @@ from enum import Enum
 from langchain_core.documents import Document
 
 class SubsectionStatus(str, Enum):
-    NOT_STARTED = "not_started"
-    IN_PROGRESS = "in_progress"
-    UNDER_REVIEW = "under_review"
-    NEEDS_REVISION = "needs_revision"
-    APPROVED = "approved"
+    READY_FOR_CONTEXT_PREP = "ready_for_context_prep"        
+    READY_FOR_WRITING = "ready_for_writing"                  
+    READY_FOR_CONTENT_REVIEW = "ready_for_content_review"   
+    READY_FOR_GROUNDING_REVIEW = "ready_for_grounding_review" 
+    READY_FOR_FEEDBACK = "ready_for_feedback"                
+    READY_FOR_REVISION = "ready_for_revision"              
+    COMPLETED = "completed" 
 
 class SectionStatus(str, Enum):
-    NOT_STARTED = "not_started"
-    IN_PROGRESS = "in_progress"
-    COMPLETED = "completed"
+    NOT_STARTED = "not_started"       
+    IN_PROGRESS = "in_progress"      
+    COMPLETED = "completed"           
 
 class ReviewType(str, Enum):
     CONTENT = "content"
@@ -62,7 +64,7 @@ class RefinementProgress(BaseModel):
     current_section_status: SectionStatus = SectionStatus.NOT_STARTED
 
     current_subsection_index: int = 0
-    current_subsection_status: SubsectionStatus = SubsectionStatus.NOT_STARTED
+    current_subsection_status: SubsectionStatus = SubsectionStatus.READY_FOR_CONTEXT_PREP
     
     current_review_status: Optional[ReviewType] = None
 

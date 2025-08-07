@@ -1,7 +1,12 @@
+from langchain_core.messages import HumanMessage, AIMessage, ToolMessage
 from pydantic import BaseModel, Field
 from typing import Optional, List
+from textwrap import indent
+
 from agents.shared.state.planning_components import Plan
 from agents.shared.state.refinement_components import RefinementProgress, Section
+
+import json
 
 class CachingOptions(BaseModel):
     cached_plan_id: Optional[str] = None
@@ -38,9 +43,7 @@ class AgentState(BaseModel):
         • Shows → TOOL <name> ARGS          (arguments the assistant sent)
         • Shows TOOL[<name>] OUT            (tool output)
         """
-        from textwrap import indent
-        from langchain_core.messages import HumanMessage, AIMessage, ToolMessage
-        import json
+
         
         def _fmt(txt: str) -> str:
             """Optionally pretty‑print JSON and truncate."""

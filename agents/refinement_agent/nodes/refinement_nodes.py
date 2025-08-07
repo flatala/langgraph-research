@@ -31,7 +31,7 @@ def initialise_refinement_progress(state: AgentState, *, config: Optional[Runnab
         current_section_index=0,
         current_section_status=SectionStatus.NOT_STARTED,
         current_subsection_index=0,
-        current_subsection_status=SubsectionStatus.NOT_STARTED,
+        current_subsection_status=SubsectionStatus.READY_FOR_CONTEXT_PREP,
         current_review_status=None,
         completed_sections=[],
         completed_subsections={},
