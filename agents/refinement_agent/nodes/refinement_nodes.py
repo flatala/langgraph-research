@@ -2,7 +2,7 @@ from langchain_core.runnables import RunnableConfig
 from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
 
 from agents.shared.state.main_state import AgentState
-from agents.shared.state.refinement_components import RefinementProgress
+from agents.shared.state.refinement_components import RefinementProgress, SectionStatus, SubsectionStatus, ReviewType
 from agents.shared.utils.llm_utils import get_text_llm, get_orchestrator_llm
 from agents.refinement_agent.agent_config import RefinementAgentConfiguration as Configuration
 
@@ -29,7 +29,10 @@ def initialise_refinement_progress(state: AgentState, *, config: Optional[Runnab
         total_sections=total_sections,
         subsections_per_section=subsections_per_section,
         current_section_index=0,
+        current_section_status=SectionStatus.NOT_STARTED,
         current_subsection_index=0,
+        current_subsection_status=SubsectionStatus.NOT_STARTED,
+        current_review_status=None,
         completed_sections=[],
         completed_subsections=[],
     )

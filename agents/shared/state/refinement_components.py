@@ -38,7 +38,6 @@ class Subsection(TypedDict):
     papers: List[PaperWithSegements]
     key_point_text: str
     content: str
-    status: SubsectionStatus
     revision_count: int
     feedback_history: List[ReviewFeedback]
     citations: List[Dict[str, Any]] 
@@ -50,14 +49,18 @@ class Section(TypedDict):
     section_introduction: str
     subsections: List[Subsection]
     section_markdown: str
-    status: SectionStatus    
 
 class RefinementProgress(TypedDict):
     total_sections: int
     subsections_per_section: Dict[int, int]
 
     current_section_index: int
+    current_section_status: SectionStatus
+
     current_subsection_index: int
+    current_subsection_status: SubsectionStatus
+    
+    current_review_status: Optional[ReviewType]
 
     completed_sections: List[int]
     completed_subsections: Dict[int, List[int]]
