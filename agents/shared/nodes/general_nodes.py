@@ -13,7 +13,7 @@ class AsyncToolNode:
         self.tools = {t.name: t for t in tools}
 
     async def __call__(self, inputs):
-        msgs = inputs["messages"]
+        msgs = inputs.messages
         last = msgs[-1]
         out = []
         for call in last.tool_calls:
@@ -36,7 +36,7 @@ def route_tools(state: AgentState, *, config: Optional[RunnableConfig] = None) -
     has tool calls. Otherwise, route to the end.
     """
 
-    if messages := state.get("messages", []):
+    if messages := state.messages:
         ai_message = messages[-1]
     else:
         raise ValueError(f"No messages found in input state to tool_edge: {state}")

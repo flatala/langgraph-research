@@ -19,10 +19,10 @@ def initialise_refinement_progress(state: AgentState, *, config: Optional[Runnab
     Initialize the refinement progress in the agent state.
     """
 
-    total_sections = len(state["plan"]["plan"])
+    total_sections = len(state.plan.plan)
     subsections_per_section = {
-        i: len(section["key_points"]) for i, 
-        section in enumerate(state["plan"]["plan"])
+        i: len(section.key_points) for i, 
+        section in enumerate(state.plan.plan)
     }
 
     progress = RefinementProgress(
@@ -34,7 +34,7 @@ def initialise_refinement_progress(state: AgentState, *, config: Optional[Runnab
         current_subsection_status=SubsectionStatus.NOT_STARTED,
         current_review_status=None,
         completed_sections=[],
-        completed_subsections=[],
+        completed_subsections={},
     )
 
     print("Refinement progress initialized.\n")

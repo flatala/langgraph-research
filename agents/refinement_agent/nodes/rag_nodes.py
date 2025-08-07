@@ -15,11 +15,11 @@ async def prepare_rag_knowledge_base(state: AgentState, *, config=None) -> dict:
 
     # 1. Collect all unique arXiv URLs from the plan
     arxiv_urls = set()
-    plan_dict: Plan = state.get("plan", {})
-    for section in plan_dict.get("plan", []): 
-        for kp in section["key_points"]:
-            for paper in kp["papers"]:
-                url = paper.get("url")
+    plan_dict: Plan = state.plan
+    for section in plan_dict.plan: 
+        for kp in section.key_points:
+            for paper in kp.papers:
+                url = paper.url
                 if url and "arxiv.org" in url:
                     # Removing version suffix (e.g., v1, v2) for clean querying
                     url = re.sub(r'v\d+$', '', url)
@@ -57,7 +57,7 @@ async def prepare_rag_knowledge_base(state: AgentState, *, config=None) -> dict:
     # figure out how to handle the rag better
     return {
         # "retriever": db.as_retriever(),
-        "documents": reduce_docs(state.get("documents"), split_docs)
+        "documents": reduce_docs(getattr(state, "documents", None), split_docs)
     }
 
 # NOTE: for later

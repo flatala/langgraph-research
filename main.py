@@ -2,7 +2,6 @@ from langchain_core.runnables import RunnableConfig
 from langgraph.types import Command
 
 from agents.shared.state.main_state import AgentState, CachingOptions
-from agents.planning_agent.utils.logging_utils import print_plan
 from agents.planning_agent.graph import planning_graph
 from agents.graph import graph
 
@@ -40,21 +39,17 @@ if __name__ == "__main__":
     PAPER_RECENCY = 'after 2023'
 
     init_state = AgentState( 
-        caching_options={
-            "cached_plan_id": 'ac1f85e4-93a2526d-9f74ab7c-0bff1986',
-            "cached_section_ids": None
-        },          
+        caching_options=CachingOptions(
+            cached_plan_id='ac1f85e4-93a2526d-9f74ab7c-0bff1986',
+            cached_section_ids=None
+        ),          
         # caching_options=None,
-        messages=[],
-        documents=None,
-        retriever=None,                     
         topic=TOPIC,
         paper_recency=PAPER_RECENCY,
+        completed=False,
+        messages=[],
         search_queries=[],
-        plan=None,
-        draft_sections=[],
-        verified_sections=[],
-        completed=False
+        plan=None
     )
 
     thread_id = str(uuid.uuid4())
@@ -71,10 +66,12 @@ if __name__ == "__main__":
     with open("graph_diagrams/planning_graph.png", "wb") as f:
         f.write(img_bytes)
 
-    final_state = asyncio.run(run_workflow_async(init_state, graph, graph_config))
-    if final_state["plan"] is None:
+    final_state_dict = asyncio.run(run_workflow_async(init_state, graph, graph_config))
+    final_state = AgentState(**final_state_dict)
+    
+    if final_state.plan is None:
         print("No plan generated.")
-        latest_msg = final_state["messages"][-1]
+        latest_msg = final_state.messages[-1]
         print(latest_msg)
     else:
-        print_plan(final_state["plan"])
+        final_state.plan.print_plan()
