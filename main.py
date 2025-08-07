@@ -40,11 +40,11 @@ if __name__ == "__main__":
     PAPER_RECENCY = 'after 2023'
 
     init_state = AgentState( 
-        # caching_options={
-        #     "cached_plan_id": 'ac1f85e4-93a2526d-9f74ab7c-0bff1986',
-        #     "cached_section_ids": None
-        # },          
-        caching_options=None,
+        caching_options={
+            "cached_plan_id": 'ac1f85e4-93a2526d-9f74ab7c-0bff1986',
+            "cached_section_ids": None
+        },          
+        # caching_options=None,
         messages=[],
         documents=None,
         retriever=None,                     

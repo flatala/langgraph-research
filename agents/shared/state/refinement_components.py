@@ -50,12 +50,14 @@ class Section(TypedDict):
     section_introduction: str
     subsections: List[Subsection]
     section_markdown: str
-    status: SectionStatus
+    status: SectionStatus    
 
 class RefinementProgress(TypedDict):
+    total_sections: int
+    subsections_per_section: Dict[int, int]
+
     current_section_index: int
     current_subsection_index: int
-    total_sections: int
-    total_subsections_in_current_section: int
+
     completed_sections: List[int]
-    completed_subsections: List[int]
+    completed_subsections: Dict[int, List[int]]

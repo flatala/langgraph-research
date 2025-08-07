@@ -1,6 +1,7 @@
 from typing_extensions import TypedDict, Optional, List
 from dataclasses import dataclass, field
 from agents.shared.state.planning_components import Plan
+from agents.shared.state.refinement_components import RefinementProgress, Section
 
 class CachingOptions(TypedDict):
     cached_plan_id: Optional[str] = None
@@ -21,5 +22,8 @@ class AgentState(TypedDict):
     search_queries: Optional[List[str]] = field(default=None)   
     plan: Optional[Plan] = field(default=None)    
 
+    # survey refinement
+    refinement_progress: RefinementProgress = field(default=None)
+    literature_survey: List[Section] = field(default_factory=list)
     completed: bool
 

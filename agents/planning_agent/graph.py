@@ -26,7 +26,6 @@ workflow.add_node("plan_literature_review", plan_literature_review)
 workflow.add_node("tools_2", AsyncToolNode([arxiv_search]))
 workflow.add_node("reflect_on_papers", reflect_on_papers)
 workflow.add_node("parse_plan", parse_plan)
-workflow.add_node("set_workflow_completed_flag", set_workflow_completed_flag)
 
 # First decide on the initial starting stage
 workflow.add_conditional_edges(
@@ -35,8 +34,8 @@ workflow.add_conditional_edges(
     {"load_cached_plan": "load_cached_plan", "start_from_scratch": "append_system_prompt"},
 )
 
-# If a cached plan is loaded, go directly to rag setup
-workflow.add_edge("load_cached_plan", "set_workflow_completed_flag")
+# If a cached plan is loaded, go directly to refinement
+workflow.add_edge("load_cached_plan", END)
 
 # if we do refinement, append system + user prompts
 workflow.add_edge("append_system_prompt", "refine_problem_statement")
@@ -62,8 +61,7 @@ workflow.add_edge("tools_2", "reflect_on_papers")
 workflow.add_edge("reflect_on_papers", "plan_literature_review")
 
 # Parse the plan, save json, setup rag
-workflow.add_edge("parse_plan", "set_workflow_completed_flag")
-workflow.add_edge("set_workflow_completed_flag", END)
+workflow.add_edge("parse_plan", END)
 
 # compile with memory
 memory = MemorySaver()
