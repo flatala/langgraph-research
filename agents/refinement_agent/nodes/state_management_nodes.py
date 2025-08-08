@@ -6,7 +6,7 @@ from agents.shared.state.refinement_components import RefinementProgress, Sectio
 from agents.shared.utils.llm_utils import get_text_llm, get_orchestrator_llm
 from agents.refinement_agent.agent_config import RefinementAgentConfiguration as Configuration
 
-from typing import List, Optional
+from typing import List, Optional, Dict
 from datetime import datetime
 from pathlib import Path
 from pprint import pprint
@@ -14,7 +14,7 @@ from pprint import pprint
 import hashlib
 import json
 
-def initialise_refinement_progress(state: AgentState, *, config: Optional[RunnableConfig] = None) -> dict:
+def initialise_refinement_progress(state: AgentState, *, config: Optional[RunnableConfig] = None) -> Dict:
     """
     Initialize the refinement progress in the agent state.
     """
