@@ -2,6 +2,7 @@ from pydantic import BaseModel, Field
 from typing import List, Optional, Dict, Any
 from enum import Enum
 from langchain_core.documents import Document
+from textwrap import indent
 
 class SubsectionStatus(str, Enum):
     READY_FOR_CONTEXT_PREP = "ready_for_context_prep"        
@@ -55,6 +56,49 @@ class Section(BaseModel):
     section_introduction: str
     subsections: List[Subsection] = Field(default_factory=list)
     section_markdown: str = ""
+    
+    def print_section(self, include_segments: bool = False) -> str:
+        """
+        Nicely format the section and subsections for quick inspection.
+        """
+        lines: List[str] = []
+        
+        # Section header
+        lines.append(f"\n{'='*60}")
+        lines.append(f"Section {self.section_index + 1}: {self.section_title}")
+        lines.append(f"{'='*60}")
+        lines.append(f"Outline: {self.section_outline}")
+        
+        if self.section_introduction:
+            lines.append(f"Introduction: {self.section_introduction}")
+        
+        lines.append(f"Subsections: {len([s for s in self.subsections if s is not None])}")
+        lines.append("-" * 60)
+        
+        # Process each subsection
+        for i, subsection in enumerate(self.subsections):
+            if subsection is None:
+                lines.append(f"  Subsection {i + 1}: [Not initialized]")
+                continue
+                
+            lines.append(f"\n  Subsection {i + 1}: {subsection.key_point_text}")
+            lines.append(f"    Status: Revision #{subsection.revision_count}")
+            
+            # Full content
+            if subsection.content:
+                lines.append("    Content:")
+                # Indent each line of content
+                content_lines = subsection.content.split('\n')
+                for content_line in content_lines:
+                    lines.append(f"      {content_line}")
+            else:
+                lines.append("    Content: [No content generated yet]")
+            
+            lines.append("")  # blank line between subsections
+        
+        formatted = "\n".join(lines)
+        print(formatted)
+        return formatted
 
 class RefinementProgress(BaseModel):
     total_sections: int

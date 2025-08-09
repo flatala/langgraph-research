@@ -3,13 +3,30 @@ from dataclasses import dataclass, field
 from typing import Optional
 from langchain_core.runnables import RunnableConfig, ensure_config
 from dataclasses import fields
-from agents.planning_agent import prompts
+from agents.refinement_agent import prompts
 from agents.shared.main_config import MainConfiguration
 
 @dataclass(kw_only=True)
 class RefinementAgentConfiguration(MainConfiguration):
-    """Full configuration for the planning agent, extending MainConfiguration."""
+    """Full configuration for the refinement agent, extending MainConfiguration."""
 
+    # PROMPTS
+
+    system_prompt: str = field(
+        default=prompts.SYSTEM_PROMPT,
+        metadata={
+            "description": "The system prompt that establishes the assistant's role as a literature review writer."
+        },
+    )
+
+    write_subsection_prompt: str = field(
+        default=prompts.WRITE_SUBSECTION_PROMPT,
+        metadata={
+            "description": "The prompt template to use for writing subsections based on key points and paper segments. "
+            "Expects f-string arguments for key_point_text, section_title, section_outline, subsection_index, "
+            "total_subsections, and paper_segments."
+        },
+    )
 
     @classmethod
     def from_runnable_config(

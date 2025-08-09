@@ -4,6 +4,7 @@ from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import FAISS
 from langchain_openai import OpenAIEmbeddings
 from langchain_core.documents import Document
+from langchain_core.messages import HumanMessage, SystemMessage
 
 from agents.refinement_agent.agent_config import RefinementAgentConfiguration as Configuration
 from agents.shared.state.main_state import AgentState
@@ -13,6 +14,7 @@ from agents.shared.state.refinement_components import (
     RefinementProgress, Section, Subsection, PaperWithSegements,
     SectionStatus, SubsectionStatus, ReviewType, ReviewFeedback
 )
+from agents.shared.utils.llm_utils import get_text_llm
 
 from typing import Dict, Optional, List
 from pathlib import Path
@@ -59,7 +61,7 @@ async def prepare_subsection_context(state: AgentState, *, config: Optional[Runn
 
 
             text_splitter = RecursiveCharacterTextSplitter(
-                chunk_size=1000,
+                chunk_size=800,
                 chunk_overlap=200,
                 separators=["\n\n", "\n", ". ", " ", ""]
             )
@@ -72,7 +74,7 @@ async def prepare_subsection_context(state: AgentState, *, config: Optional[Runn
             query = key_point.text
             print(f"🔍 Query: '{query}'")
         
-            relevant_docs = vectorstore.similarity_search_with_score(query, k=15)
+            relevant_docs = vectorstore.similarity_search_with_score(query, k=5)
             relevant_docs.sort(key=lambda x: x[1])
             
             relevant_segments = []
@@ -132,7 +134,7 @@ async def prepare_subsection_context(state: AgentState, *, config: Optional[Runn
     current_section = literature_survey[current_section_idx]
     updated_section = current_section.model_copy()
     
-    # Extend subsections list if needed
+    # Ensure subsections list is long enough
     while len(updated_section.subsections) <= current_subsection_idx:
         updated_section.subsections.append(None)
     
@@ -155,40 +157,98 @@ async def write_subsection(state: AgentState, *, config: Optional[RunnableConfig
     Write content for current subsection.
     Status: READY_FOR_WRITING → READY_FOR_CONTENT_REVIEW
     """
+    cfg = Configuration.from_runnable_config(config)
     progress = state.refinement_progress
+    plan = state.plan
     current_section_idx = progress.current_section_index
     current_subsection_idx = progress.current_subsection_index
     
     print(f"✍️  Writing subsection {current_subsection_idx+1} of section {current_section_idx+1}")
     
-    # Get current subsection
     current_section = state.literature_survey[current_section_idx]
     current_subsection = current_section.subsections[current_subsection_idx]
+    section_plan = plan.plan[current_section_idx]
     
-    # TODO: Implement actual writing logic with LLM
-    placeholder_content = f"""
-### {current_subsection.key_point_text}
-
-[TODO: Generate actual content using LLM with:]
-- Key point: {current_subsection.key_point_text}
-- Papers: {len(current_subsection.papers)} papers with segments
-- Previous context for flow
-
-This subsection discusses {current_subsection.key_point_text} based on the retrieved paper segments.
-""".strip()
+    # Format paper segments for the prompt
+    paper_segments_text = ""
+    for i, paper in enumerate(current_subsection.papers, 1):
+        # Extract author last names for citation format
+        author_names = []
+        for author in paper.authors:
+            if author and author != "Unknown":
+                # Take last name (assuming format like "First Last" or "Last, First")
+                if ',' in author:
+                    last_name = author.split(',')[0].strip()
+                else:
+                    last_name = author.split()[-1] if author.split() else author
+                author_names.append(last_name)
+        
+        authors_str = ", ".join(author_names) if author_names else "Unknown"
+        
+        paper_segments_text += f"\n**Paper {i}: {paper.title}**\n"
+        paper_segments_text += f"**Authors**: {authors_str}\n"
+        paper_segments_text += f"**ArXiv ID**: {paper.arxiv_id}\n"
+        paper_segments_text += f"**Relevant Segments**:\n"
+        
+        for j, segment in enumerate(paper.relevant_segments, 1):
+            paper_segments_text += f"  - Fragment {j}: {segment}\n"
+        
+        paper_segments_text += "\n"
     
-    # Update subsection with content
+    # Prepare the writing prompt
+    writing_prompt = cfg.write_subsection_prompt.format(
+        key_point_text=current_subsection.key_point_text,
+        section_title=section_plan.title,
+        section_outline=section_plan.outline,
+        subsection_index=current_subsection_idx + 1,
+        total_subsections=len(section_plan.key_points),
+        paper_segments=paper_segments_text.strip()
+    )
+    
+    # Create messages for LLM
+    system_msg = SystemMessage(content=cfg.system_prompt)
+    user_msg = HumanMessage(content=writing_prompt)
+    messages = [system_msg, user_msg]
+    
+    # Get LLM and generate content
+    llm = get_text_llm(cfg=cfg)
+    print("🤖 Generating subsection content with LLM...")
+    
+    try:
+        ai_response = await llm.ainvoke(messages)
+        generated_content = ai_response.content.strip()
+        print(f"✅ Generated {len(generated_content)} characters of content")
+    except Exception as e:
+        print(f"❌ Error generating content: {e}")
+        generated_content = f"Error generating content: {str(e)}"
+    
+    # Update subsection with generated content
     updated_subsection = current_subsection.model_copy(update={
-        "content": placeholder_content
+        "content": generated_content
     })
     
     # Update literature survey
     literature_survey = list(state.literature_survey)
     updated_section = literature_survey[current_section_idx].model_copy()
+    
+    while len(updated_section.subsections) <= current_subsection_idx:
+        updated_section.subsections.append(None)
+
     updated_section.subsections[current_subsection_idx] = updated_subsection
     literature_survey[current_section_idx] = updated_section
     
     print("✅ Content written, ready for content review")
+    
+    # Print current state for debugging
+    print("\n" + "="*80)
+    print("🔍 CURRENT LITERATURE SURVEY STATE")
+    print("="*80)
+    current_section = literature_survey[current_section_idx]
+    current_section.print_section(include_segments=True)
+    
+    # Temporary break for iteration
+    print("\n🚧 STOPPING HERE FOR ITERATION - First subsection completed!")
+    raise Exception("Stopping execution after first subsection for debugging and iteration")
     
     return {
         "literature_survey": literature_survey,
