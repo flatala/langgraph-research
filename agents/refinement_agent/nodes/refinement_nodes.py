@@ -1,43 +1,105 @@
-from typing import Dict, Optional
 from langchain_core.runnables import RunnableConfig
+from langchain_community.document_loaders import ArxivLoader
+from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain_community.vectorstores import FAISS
+from langchain_openai import OpenAIEmbeddings
+from langchain_core.documents import Document
 
+from agents.refinement_agent.agent_config import RefinementAgentConfiguration as Configuration
 from agents.shared.state.main_state import AgentState
+from agents.shared.state.planning_components import KeyPoint, Plan, SectionPlan
+from agents.shared.state.refinement_components import RefinementProgress
 from agents.shared.state.refinement_components import (
     RefinementProgress, Section, Subsection, PaperWithSegements,
     SectionStatus, SubsectionStatus, ReviewType, ReviewFeedback
 )
 
+from typing import Dict, Optional, List
+from pathlib import Path
+from collections import defaultdict
+from dotenv import load_dotenv
+import re
+
+load_dotenv(                
+    Path(__file__).resolve().parent.parent.parent.parent / ".env",
+    override=False,         
+)    
 
 async def prepare_subsection_context(state: AgentState, *, config: Optional[RunnableConfig] = None) -> Dict:
     """
     Comprehensive preparation: RAG + context + subsection setup.
     Status: READY_FOR_CONTEXT_PREP → READY_FOR_WRITING
     """
-    progress = state.refinement_progress
-    plan = state.plan
-    
-    current_section_idx = progress.current_section_index
-    current_subsection_idx = progress.current_subsection_index
-    
-    # Get current key point from plan
-    section_plan = plan.plan[current_section_idx]
-    key_point = section_plan.key_points[current_subsection_idx]
-    
-    print(f"📝 Preparing context for Section {current_section_idx+1}, Subsection {current_subsection_idx+1}")
-    print(f"Key point: {key_point.text}")
-    
-    # TODO: Implement actual RAG retrieval here
+    progress: RefinementProgress = state.refinement_progress
+    plan: Plan = state.plan
+    current_section_idx: int = progress.current_section_index
+    current_subsection_idx: int = progress.current_subsection_index
+    section_plan: SectionPlan = plan.plan[current_section_idx]
+    key_point: KeyPoint = section_plan.key_points[current_subsection_idx]
+    print(f"\n📝 Preparing context for Section {current_section_idx+1}, Subsection {current_subsection_idx+1}\n")
+
+    # Initialize OpenAI embeddings
+    embeddings = OpenAIEmbeddings()
     papers_with_segments = []
-    for paper_ref in key_point.papers:
-        paper_with_segments = PaperWithSegements(
-            title=paper_ref.title,
-            authors=["Author"],  # TODO: Extract from actual paper
-            arxiv_id="placeholder",
-            arxiv_url=paper_ref.url,
-            citation=f"({paper_ref.title}, {paper_ref.year})",
-            content=None,  # TODO: Load actual document
-            relevant_segments=["TODO: Retrieve relevant segments using RAG"]
-        )
+    
+    for i, paper_ref in enumerate(key_point.papers):
+        print(f"Processing paper {i+1}/{len(key_point.papers)}: {paper_ref.title}\n")
+        
+        url = paper_ref.url
+        if url and "arxiv.org" in url:
+            url = re.sub(r'v\d+$', '', url)
+        
+        arxiv_id = url.split("/")[-1] if url else "unknown"
+        
+        try:
+            loader = ArxivLoader(query=arxiv_id, load_max_docs=1, load_full_text=True)
+            docs = loader.load()
+            doc = docs[0]
+            authors = doc.metadata.get('Authors', '').split(', ') if doc.metadata.get('Authors') else ["Unknown"]
+
+
+            text_splitter = RecursiveCharacterTextSplitter(
+                chunk_size=1000,
+                chunk_overlap=200,
+                separators=["\n\n", "\n", ". ", " ", ""]
+            )
+            chunks = text_splitter.split_documents(docs)
+        
+            
+            print(f"Creating FAISS index for {len(chunks)} chunks...\n")
+            vectorstore = FAISS.from_documents(chunks, embeddings)
+            
+            query = key_point.text
+            print(f"🔍 Query: '{query}'")
+        
+            relevant_docs = vectorstore.similarity_search_with_score(query, k=15)
+            relevant_docs.sort(key=lambda x: x[1])
+            
+            relevant_segments = []
+            print(f"📄 Retrieved segments from '{paper_ref.title}': \n")
+            for i, (doc_chunk, score) in enumerate(relevant_docs, 1):
+                print(f"  {i}. [Score: {score:.3f}] \n {doc_chunk.page_content} \n")
+                relevant_segments.append(f"[Score: {score:.3f}] {doc_chunk.page_content}")
+            
+            if not relevant_segments:
+                relevant_segments = ["No relevant segments found"]
+                print("  ❌ No relevant segments found")
+            
+            paper_with_segments = PaperWithSegements(
+                title=paper_ref.title,
+                authors=authors,
+                arxiv_id=arxiv_id,
+                arxiv_url=paper_ref.url,
+                citation=f"({paper_ref.title}, {paper_ref.year})",
+                content=doc,
+                relevant_segments=relevant_segments
+            )
+            
+            print(f"✅ Found {len(relevant_segments)} relevant segments for {paper_ref.title}")
+            
+        except Exception as e:
+            print(f"Error processing paper {arxiv_id}: {e}")
+        
         papers_with_segments.append(paper_with_segments)
     
     # Create subsection with all context

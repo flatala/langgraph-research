@@ -20,8 +20,8 @@ async def arxiv_search(query: str, *, config: Annotated[RunnableConfig, Injected
     """
 
     print(f"Starting ArXiv search...\n")
-    cfg   = Configuration.from_runnable_config(config)
-    docs  = ArxivLoader(query=query, max_results=cfg.max_search_results).get_summaries_as_docs()
+    cfg = Configuration.from_runnable_config(config)
+    docs = ArxivLoader(query=query, max_results=cfg.max_search_results).get_summaries_as_docs()
     results = []
     for d in docs:
         m = d.metadata
