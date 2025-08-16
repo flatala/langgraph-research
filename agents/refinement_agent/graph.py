@@ -52,8 +52,8 @@ ROUTE_MAP = {
     "prepare_subsection_context": "prepare_subsection_context",
     "write_subsection": "write_subsection",
     "review_content": "review_content", 
-    "review_grounding": END,
-    "process_feedback": "process_feedback",
+    "review_grounding": "review_grounding",
+    "process_feedback": END,
     "start_revision": "start_revision",
     "advance_to_next": "advance_to_next",
     "complete_refinement": "complete_refinement"

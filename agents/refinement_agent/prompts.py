@@ -126,16 +126,9 @@ Task
 Identify all citations in the provided paper segments and extract the text/claims that are being supported by each citation. Citations can appear at the end of sentences, in the middle, or at various positions relative to the claims they support.
 
 ───────────────
-Paper Information
-───────────────
-**Title**: {paper_title}
-**Authors**: {paper_authors}
-**ArXiv ID**: {arxiv_id}
-
-───────────────
 Text Segments to Analyze
 ───────────────
-{paper_segments}
+{paper_segment}
 
 ───────────────
 Citation Format to Identify
@@ -148,7 +141,7 @@ Look for citations in these specific formats:
 ───────────────
 Extraction Instructions
 ───────────────
-1. **Find Citations**: Locate all citations matching the specified format
+1. **Find Citations**: Locate all citations matching the specified format and matching the paper information
 2. **Identify Supported Claims**: Determine what text/claims are being supported by each citation by analyzing:
    - The sentence containing the citation
    - The broader context around the citation
@@ -180,12 +173,10 @@ Return a JSON object with the following structure:
             "full_sentence": "<complete sentence containing the citation>",
             "surrounding_context": "<broader paragraph context for understanding>",
             "segment_number": <number of segment where found>,
-            "claim_type": "<methodology|results|conclusion|background|comparison|other>",
             "citation_position": "<beginning|middle|end> of sentence/claim"
         }}
     ],
     "total_citations": <integer count of unique citations found>,
-    "extraction_notes": "<any important notes about the citation patterns found>"
 }}
 
 If no citations are found, return:

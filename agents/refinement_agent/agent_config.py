@@ -40,7 +40,7 @@ class RefinementAgentConfiguration(MainConfiguration):
         default=prompts.CITATION_IDENTIFICATION_PROMPT,
         metadata={
             "description": "The prompt template to use for identifying citations and extracting supported claims from paper segments. "
-            "Expects f-string arguments: paper_title (str), paper_authors (str), arxiv_id (str), paper_segments (str)"
+            "Expects f-string argument: paper_segment (str)"
         },
     )
 

@@ -17,6 +17,7 @@ from agents.shared.state.refinement_components import (
 from agents.shared.utils.llm_utils import get_text_llm, get_orchestrator_llm
 
 from typing import Dict, Optional, List
+from pprint import pprint
 from pathlib import Path
 from collections import defaultdict
 from dotenv import load_dotenv
@@ -374,26 +375,46 @@ async def review_grounding(state: AgentState, *, config: Optional[RunnableConfig
     """
     Perform grounding/citation review.
     Status: READY_FOR_GROUNDING_REVIEW → READY_FOR_FEEDBACK
-    """
+    """    
+    cfg = Configuration.from_runnable_config(config)
     progress = state.refinement_progress
     current_section_idx = progress.current_section_index
     current_subsection_idx = progress.current_subsection_index
-    
+
     print("🔍 Reviewing grounding and citations...")
     
-    # Get current subsection
+    # Get current subsection and prepare prompt
     current_subsection = state.literature_survey[current_section_idx].subsections[current_subsection_idx]
-    
-    # TODO: Implement actual grounding review with LLM
-    # For now, simple logic for testing
-    review_passed = (current_subsection.revision_count % 3 != 1)  # Different pattern than content
-    
-    feedback = ReviewFeedback(
-        review_type=ReviewType.GROUNDING,
-        passed=review_passed,
-        feedback=f"TODO: Implement actual grounding review. Current: {'PASS' if review_passed else 'FAIL'}",
-        suggestions=["Fix citations", "Verify claims"] if not review_passed else None
+    extract_citations_prompt = cfg.citation_identification_prompt.format(
+        paper_segment=current_subsection.content
     )
+
+    # Create messages for LLM
+    user_msg = HumanMessage(content=extract_citations_prompt)
+    
+    # Get LLM and generate review
+    llm = get_orchestrator_llm(cfg=cfg).with_config({"response_format": {"type": "json_object"}}) 
+    print("🤖 Extracting citations from the subsection...")
+    ai_response = await llm.ainvoke([user_msg])
+    review_text = ai_response.content.strip()
+    
+    # Parse JSON response
+    try:
+        citation_data = json.loads(review_text)
+        citation_claims = citation_data.get("citation_claims", [])
+        total_citations = citation_data.get("total_citations", 0)
+        print(f"📊 Extracted {total_citations} citations from subsection")
+    except json.JSONDecodeError as e:
+        print(f"❌ Error parsing JSON response: {e}")
+        print(f"Raw response: {review_text}")
+        # Fallback logic
+        citation_claims = []
+        total_citations = 0
+
+    pprint(citation_claims)
+
+    # Perform grounding review based on extracted citations
+    feedback = None
     
     # Add feedback to subsection
     updated_subsection = current_subsection.model_copy()
@@ -404,11 +425,6 @@ async def review_grounding(state: AgentState, *, config: Optional[RunnableConfig
     updated_section = literature_survey[current_section_idx].model_copy()
     updated_section.subsections[current_subsection_idx] = updated_subsection
     literature_survey[current_section_idx] = updated_section
-    
-    if review_passed:
-        print("✅ Grounding review passed, ready for feedback processing")
-    else:
-        print("❌ Grounding review failed, ready for feedback processing")
     
     return {
         "literature_survey": literature_survey,
