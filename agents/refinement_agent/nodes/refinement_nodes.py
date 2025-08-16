@@ -14,7 +14,7 @@ from agents.shared.state.refinement_components import (
     RefinementProgress, Section, Subsection, PaperWithSegements,
     SectionStatus, SubsectionStatus, ReviewType, ReviewFeedback
 )
-from agents.shared.utils.llm_utils import get_text_llm
+from agents.shared.utils.llm_utils import get_text_llm, get_orchestrator_llm
 
 from typing import Dict, Optional, List
 from pathlib import Path
@@ -297,7 +297,7 @@ async def review_content(state: AgentState, *, config: Optional[RunnableConfig] 
     messages = [system_msg, user_msg]
     
     # Get LLM and generate review
-    llm = get_text_llm(cfg=cfg)
+    llm = get_orchestrator_llm(cfg=cfg)
     print("🤖 Generating content review with LLM...")
     
     try:

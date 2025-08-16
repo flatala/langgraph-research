@@ -36,6 +36,22 @@ class RefinementAgentConfiguration(MainConfiguration):
         },
     )
 
+    citation_identification_prompt: str = field(
+        default=prompts.CITATION_IDENTIFICATION_PROMPT,
+        metadata={
+            "description": "The prompt template to use for identifying citations and extracting supported claims from paper segments. "
+            "Expects f-string arguments: paper_title (str), paper_authors (str), arxiv_id (str), paper_segments (str)"
+        },
+    )
+
+    review_grounding_prompt: str = field(
+        default=prompts.REVIEW_GROUNDING_PROMPT,
+        metadata={
+            "description": "The prompt template to use for verifying that citation claims are truthfully supported by the full paper content. "
+            "Expects f-string arguments: citation_claims (str), full_paper_content (str)"
+        },
+    )
+
     minimum_score: int = field(
         default=7,
         metadata={
