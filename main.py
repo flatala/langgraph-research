@@ -3,6 +3,7 @@ from langgraph.types import Command
 
 from agents.shared.state.main_state import AgentState, CachingOptions
 from agents.planning_agent.graph import planning_graph
+from agents.refinement_agent.graph import refinement_graph
 from agents.graph import graph
 
 from dotenv import load_dotenv
@@ -64,6 +65,10 @@ if __name__ == "__main__":
 
     img_bytes = planning_graph.get_graph().draw_mermaid_png()
     with open("graph_diagrams/planning_graph.png", "wb") as f:
+        f.write(img_bytes)
+
+    img_bytes = refinement_graph.get_graph().draw_mermaid_png()
+    with open("graph_diagrams/refinement_graph.png", "wb") as f:
         f.write(img_bytes)
 
     final_state_dict = asyncio.run(run_workflow_async(init_state, graph, graph_config))

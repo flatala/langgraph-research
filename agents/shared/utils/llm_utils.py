@@ -41,7 +41,7 @@ def get_orchestrator_llm(cfg: MainConfiguration) -> LLMType:
     api_key = getattr(cfg, f"{cfg.orchestrator_provider}_api_key")
     if not api_key:
         raise ValueError(f"API key not found for provider: {cfg.orchestrator_provider}")
-    
+        
     return _create_llm(cfg.orchestrator_provider, cfg.orchestrator_model, api_key)
 
 def get_text_llm(cfg: MainConfiguration) -> LLMType:
