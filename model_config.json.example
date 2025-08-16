@@ -1,0 +1,31 @@
+{
+  "_schema_version": "1.0",
+  "_description": "Model configuration for LangGraph Research Project. Copy this file to model_config.json and customize as needed.",
+  
+  "orchestrator": {
+    "provider": "openai",
+    "model": "o3",
+    "_description": "The model used for orchestrating the research workflow and planning tasks"
+  },
+  
+  "text": {
+    "provider": "openai", 
+    "model": "gpt-4.1-2025-04-14",
+    "_description": "The model used for text processing and document analysis tasks"
+  },
+  
+  "_supported_providers": {
+    "openai": {
+      "description": "OpenAI models (GPT-4, o3, etc.)",
+      "common_models": ["gpt-4.1-2025-04-14", "o3", "gpt-4o", "gpt-4-turbo"]
+    },
+    "anthropic": {
+      "description": "Anthropic Claude models",
+      "common_models": ["claude-3-5-sonnet-20241022", "claude-3-opus-20240229", "claude-3-haiku-20240307"]
+    },
+    "google": {
+      "description": "Google Generative AI models",
+      "common_models": ["gemini-1.5-pro", "gemini-1.5-flash", "gemini-pro"]
+    }
+  }
+}

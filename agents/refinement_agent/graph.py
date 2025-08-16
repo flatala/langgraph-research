@@ -37,9 +37,20 @@ ACTION_NODES = [
     "advance_to_next"
 ]
 
+# ROUTE_MAP = {
+#     "prepare_subsection_context": "prepare_subsection_context",
+#     "write_subsection": "write_subsection",
+#     "review_content": "review_content", 
+#     "review_grounding": "review_grounding",
+#     "process_feedback": "process_feedback",
+#     "start_revision": "start_revision",
+#     "advance_to_next": "advance_to_next",
+#     "complete_refinement": "complete_refinement"
+# }
+
 ROUTE_MAP = {
     "prepare_subsection_context": "prepare_subsection_context",
-    "write_subsection": "write_subsection",
+    "write_subsection": END,
     "review_content": "review_content", 
     "review_grounding": "review_grounding",
     "process_feedback": "process_feedback",

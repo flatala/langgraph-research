@@ -261,10 +261,6 @@ async def write_subsection(state: AgentState, *, config: Optional[RunnableConfig
     current_section = literature_survey[current_section_idx]
     current_section.print_section(include_segments=True)
     
-    # Temporary break for iteration
-    print("\n🚧 STOPPING HERE FOR ITERATION - First subsection completed!")
-    raise Exception("Stopping execution after first subsection for debugging and iteration")
-    
     return {
         "literature_survey": literature_survey,
         "refinement_progress": progress.model_copy(update={
