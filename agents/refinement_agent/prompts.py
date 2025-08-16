@@ -100,7 +100,8 @@ Your task is the following:
 {{
     "score": <int>
     "meets_minimum": <bool>
-    "feedback": "<the feedback or empty string if the quality standards are met>"
+    "reasoning": <string - the reasoning behind the given score refering to each of the provided criteria>
+    "feedback": "<string - the feedback or empty string if the quality standards are met>"
 }}
 
 - ** The minimum score is {minimum_score}. **

@@ -50,9 +50,9 @@ ACTION_NODES = [
 
 ROUTE_MAP = {
     "prepare_subsection_context": "prepare_subsection_context",
-    "write_subsection": END,
+    "write_subsection": "write_subsection",
     "review_content": "review_content", 
-    "review_grounding": "review_grounding",
+    "review_grounding": END,
     "process_feedback": "process_feedback",
     "start_revision": "start_revision",
     "advance_to_next": "advance_to_next",
