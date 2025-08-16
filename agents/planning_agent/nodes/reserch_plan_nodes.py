@@ -18,7 +18,7 @@ import json
 PLAN_CACHE_PATH = 'cache/plans/'
 
 
-async def decide_on_start_stage(state: AgentState, *, config: Optional[RunnableConfig] = None) -> dict:
+async def decide_on_start_stage(state: AgentState, *, config: Optional[RunnableConfig] = None) -> str:
     if state.caching_options is not None and state.caching_options.cached_plan_id is not None:
         print("Using cached plan...\n")
         return "load_cached_plan"
@@ -53,11 +53,11 @@ async def refine_problem_statement(state: AgentState, *, config: Optional[Runnab
     llm = (
         get_text_llm(cfg=cfg)
         .bind_tools([human_assistance])
-        .with_config({"response_format": {"type": "json_object"}})
+        .with_config({"response_format": {"type": "json_object"}}) # type: ignore
     )
 
     messages = state.messages
-    ai_msg: AIMessage = await llm.ainvoke(messages)
+    ai_msg: AIMessage = await llm.ainvoke(messages) # type: ignore
 
     return {
         "messages": messages + [ai_msg],
@@ -92,7 +92,7 @@ async def plan_literature_review(state: AgentState, *, config=None):
     llm = (
         get_orchestrator_llm(cfg=cfg)
         .bind_tools([arxiv_search])
-        .with_config({"response_format": {"type": "json_object"}})
+        .with_config({"response_format": {"type": "json_object"}}) # type: ignore
     )
 
     messages = state.messages
@@ -163,7 +163,7 @@ async def parse_plan(state: AgentState, *, config: Optional[RunnableConfig] = No
 
 
 async def load_cached_plan(state: AgentState, *, config: Optional[RunnableConfig] = None) -> dict:
-    caching_options: CachingOptions = state.caching_options
+    caching_options: CachingOptions = state.caching_options # type: ignore
     if caching_options and caching_options.cached_plan_id:
         plan_id = caching_options.cached_plan_id
         plan_path = Path(PLAN_CACHE_PATH) / f"{plan_id}.json"

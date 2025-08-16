@@ -42,6 +42,7 @@ class PaperWithSegements(BaseModel):
 
 class Subsection(BaseModel):
     subsection_index: int
+    subsection_title: str
     papers: List[PaperWithSegements]
     key_point_text: str
     content: str

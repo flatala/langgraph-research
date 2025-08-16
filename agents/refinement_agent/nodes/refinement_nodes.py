@@ -4,7 +4,7 @@ from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import FAISS
 from langchain_openai import OpenAIEmbeddings
 from langchain_core.documents import Document
-from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_core.messages import HumanMessage, SystemMessage, AIMessage
 
 from agents.refinement_agent.agent_config import RefinementAgentConfiguration as Configuration
 from agents.shared.state.main_state import AgentState
@@ -21,6 +21,7 @@ from pathlib import Path
 from collections import defaultdict
 from dotenv import load_dotenv
 import re
+import json
 
 load_dotenv(                
     Path(__file__).resolve().parent.parent.parent.parent / ".env",
@@ -107,6 +108,7 @@ async def prepare_subsection_context(state: AgentState, *, config: Optional[Runn
     # Create subsection with all context
     subsection = Subsection(
         subsection_index=current_subsection_idx,
+        subsection_title=key_point.text,  # Use key point text as subsection title
         papers=papers_with_segments,
         key_point_text=key_point.text,
         content="",
@@ -194,9 +196,22 @@ async def write_subsection(state: AgentState, *, config: Optional[RunnableConfig
             paper_segments_text += f"  - Fragment {j}: {segment}\n"
         
         paper_segments_text += "\n"
+
+    # Prepare and format the already completed content for context
+    section_context = ""
+    for i, section in enumerate(state.literature_survey, 1):
+        section_context += f"\n**Section {i}: {section.section_title}**\n"
+        section_context += section.section_introduction
+        section_context += "\n"
+        for j, subsection in enumerate(section.subsections, 1):
+            section_context += f"\n**Subsection {i}.{j}: {subsection.subsection_title}**\n"
+            section_context += subsection.content
+            section_context += "\n"
+        section_context += "\n"
     
     # Prepare the writing prompt
     writing_prompt = cfg.write_subsection_prompt.format(
+        preceeding_sections=section_context,
         key_point_text=current_subsection.key_point_text,
         section_title=section_plan.title,
         section_outline=section_plan.outline,
@@ -263,6 +278,7 @@ async def review_content(state: AgentState, *, config: Optional[RunnableConfig] 
     Perform content quality review.
     Status: READY_FOR_CONTENT_REVIEW → READY_FOR_GROUNDING_REVIEW (if pass) or READY_FOR_FEEDBACK (if fail)
     """
+    cfg = Configuration.from_runnable_config(config)
     progress = state.refinement_progress
     current_section_idx = progress.current_section_index
     current_subsection_idx = progress.current_subsection_index
@@ -272,15 +288,56 @@ async def review_content(state: AgentState, *, config: Optional[RunnableConfig] 
     # Get current subsection
     current_subsection = state.literature_survey[current_section_idx].subsections[current_subsection_idx]
     
-    # TODO: Implement actual content review with LLM
-    # For now, simple logic for testing
-    review_passed = (current_subsection.revision_count % 2 == 0)
+    # Prepare content review prompt
+    review_prompt = cfg.content_review_prompt.format(
+        minimum_score=cfg.minimum_score,
+        key_point=current_subsection.key_point_text,
+        subsection=current_subsection.content
+    )
     
+    # Create messages for LLM
+    system_msg = SystemMessage(content="You are an expert content reviewer for academic literature surveys.")
+    user_msg = HumanMessage(content=review_prompt)
+    messages = [system_msg, user_msg]
+    
+    # Get LLM and generate review
+    llm = get_text_llm(cfg=cfg)
+    print("🤖 Generating content review with LLM...")
+    
+    try:
+        ai_response = await llm.ainvoke(messages)
+        review_text = ai_response.content.strip()
+        
+        # Parse JSON response
+        try:
+            review_data = json.loads(review_text)
+            score = review_data.get("score", 0)
+            meets_minimum = review_data.get("meets_minimum", False)
+            feedback_text = review_data.get("feedback", "")
+        except json.JSONDecodeError as e:
+            print(f"❌ Error parsing JSON response: {e}")
+            print(f"Raw response: {review_text}")
+            # Fallback logic
+            score = 0
+            meets_minimum = False
+            feedback_text = f"JSON parsing failed. Raw response: {review_text}"
+        
+        print(f"📊 Content review score: {score}/10, Passed: {meets_minimum}")
+        if feedback_text:
+            print(f"📝 Feedback: {feedback_text}")
+            
+    except Exception as e:
+        print(f"❌ Error during content review: {e}")
+        score = 0
+        meets_minimum = False
+        feedback_text = f"Error during review: {str(e)}"
+    
+    # Create feedback object
     feedback = ReviewFeedback(
         review_type=ReviewType.CONTENT,
-        passed=review_passed,
-        feedback=f"TODO: Implement actual content review. Current: {'PASS' if review_passed else 'FAIL'}",
-        suggestions=["Improve clarity", "Add more examples"] if not review_passed else None
+        passed=meets_minimum,
+        feedback=feedback_text,
+        suggestions=None  # Could be extracted from feedback_text if needed
     )
     
     # Add feedback to subsection
@@ -293,8 +350,15 @@ async def review_content(state: AgentState, *, config: Optional[RunnableConfig] 
     updated_section.subsections[current_subsection_idx] = updated_subsection
     literature_survey[current_section_idx] = updated_section
     
+    # Add AI messages to state for tracking
+    messages_update = list(state.messages) if state.messages else []
+    messages_update.extend([
+        HumanMessage(content=f"Content review request for subsection {current_subsection_idx+1}"),
+        AIMessage(content=f"Content review completed: Score {score}/10, {'PASSED' if meets_minimum else 'FAILED'}")
+    ])
+    
     # Determine next status
-    if review_passed:
+    if meets_minimum:
         next_status = SubsectionStatus.READY_FOR_GROUNDING_REVIEW
         print("✅ Content review passed, ready for grounding review")
     else:
@@ -302,6 +366,7 @@ async def review_content(state: AgentState, *, config: Optional[RunnableConfig] 
         print("❌ Content review failed, ready for feedback processing")
     
     return {
+        "messages": messages_update,
         "literature_survey": literature_survey,
         "refinement_progress": progress.model_copy(update={
             "current_subsection_status": next_status

@@ -23,8 +23,23 @@ class RefinementAgentConfiguration(MainConfiguration):
         default=prompts.WRITE_SUBSECTION_PROMPT,
         metadata={
             "description": "The prompt template to use for writing subsections based on key points and paper segments. "
-            "Expects f-string arguments for key_point_text, section_title, section_outline, subsection_index, "
+            "Expects f-string arguments for preceeding_sections, key_point_text, section_title, section_outline, subsection_index, "
             "total_subsections, and paper_segments."
+        },
+    )
+
+    content_review_prompt: str = field(
+        default=prompts.CONTENT_REVIEW_PROMPT,
+        metadata={
+            "description": "The prompt template to use for reviewing the quality of generated subsections. "
+            "Expects the following arguments: minimum_score (int), key_point (str), subsection (str)"
+        },
+    )
+
+    minimum_score: int = field(
+        default=7,
+        metadata={
+            "description": "Minimum quality score required for content review to pass (1-10 scale)"
         },
     )
 
