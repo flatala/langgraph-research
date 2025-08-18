@@ -28,6 +28,41 @@ class ReviewFeedback(BaseModel):
     feedback: str
     suggestions: Optional[List[str]] = None
 
+class CitationClaim(BaseModel):
+    citation: str
+    cited_papers: List[str]
+    supported_claim: str
+    full_sentence: str
+    surrounding_context: str
+    segment_number: int
+    citation_position: str
+
+class CitationExtraction(BaseModel):
+    citation_claims: List[CitationClaim]
+    total_citations: int
+    
+    @classmethod
+    def from_json(cls, json_data: Dict[str, Any]) -> 'CitationExtraction':
+        """Parse JSON data into CitationExtraction Pydantic model with validation."""
+        citation_claims = []
+        
+        for claim_data in json_data.get("citation_claims", []):
+            citation_claim = CitationClaim(
+                citation=claim_data.get("citation", ""),
+                cited_papers=claim_data.get("cited_papers", []),
+                supported_claim=claim_data.get("supported_claim", ""),
+                full_sentence=claim_data.get("full_sentence", ""),
+                surrounding_context=claim_data.get("surrounding_context", ""),
+                segment_number=claim_data.get("segment_number", 0),
+                citation_position=claim_data.get("citation_position", "")
+            )
+            citation_claims.append(citation_claim)
+        
+        return cls(
+            citation_claims=citation_claims,
+            total_citations=json_data.get("total_citations", 0)
+        )
+
 class PaperWithSegements(BaseModel):
     title: str
     authors: List[str]
@@ -48,7 +83,7 @@ class Subsection(BaseModel):
     content: str
     revision_count: int = 0
     feedback_history: List[ReviewFeedback] = Field(default_factory=list)
-    citations: List[Dict[str, Any]] = Field(default_factory=list) 
+    citations: List[CitationClaim] = Field(default_factory=list) 
 
 class Section(BaseModel):
     section_index: int

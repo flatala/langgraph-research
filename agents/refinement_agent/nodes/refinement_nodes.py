@@ -12,7 +12,8 @@ from agents.shared.state.planning_components import KeyPoint, Plan, SectionPlan
 from agents.shared.state.refinement_components import RefinementProgress
 from agents.shared.state.refinement_components import (
     RefinementProgress, Section, Subsection, PaperWithSegements,
-    SectionStatus, SubsectionStatus, ReviewType, ReviewFeedback
+    SectionStatus, SubsectionStatus, ReviewType, ReviewFeedback,
+    CitationExtraction, CitationClaim
 )
 from agents.shared.utils.llm_utils import get_text_llm, get_orchestrator_llm
 
@@ -172,7 +173,7 @@ async def write_subsection(state: AgentState, *, config: Optional[RunnableConfig
     current_subsection = current_section.subsections[current_subsection_idx]
     section_plan = plan.plan[current_section_idx]
     
-    # Format paper segments for the prompt
+    # Format paper segments for the subsection writing prompt
     paper_segments_text = ""
     for i, paper in enumerate(current_subsection.papers, 1):
         # Extract author last names for citation format
@@ -198,7 +199,7 @@ async def write_subsection(state: AgentState, *, config: Optional[RunnableConfig
         
         paper_segments_text += "\n"
 
-    # Prepare and format the already completed content for context
+    # prepare and format the already completed content to use as context
     section_context = ""
     for i, section in enumerate(state.literature_survey, 1):
         section_context += f"\n**Section {i}: {section.section_title}**\n"
@@ -210,7 +211,7 @@ async def write_subsection(state: AgentState, *, config: Optional[RunnableConfig
             section_context += "\n"
         section_context += "\n"
     
-    # Prepare the writing prompt
+    # compile the writing prompt
     writing_prompt = cfg.write_subsection_prompt.format(
         preceeding_sections=section_context,
         key_point_text=current_subsection.key_point_text,
@@ -221,32 +222,28 @@ async def write_subsection(state: AgentState, *, config: Optional[RunnableConfig
         paper_segments=paper_segments_text.strip()
     )
     
-    # Create messages for LLM
+    # create messages for LLM
     system_msg = SystemMessage(content=cfg.system_prompt)
     user_msg = HumanMessage(content=writing_prompt)
     messages = [system_msg, user_msg]
     
-    # Get LLM and generate content
+    # get LLM and generate subsection content
     llm = get_text_llm(cfg=cfg)
     print("🤖 Generating subsection content with LLM...")
+    ai_response = await llm.ainvoke(messages)
+    generated_content = ai_response.content.strip()
+    print(f"✅ Generated {len(generated_content)} characters of content")
     
-    try:
-        ai_response = await llm.ainvoke(messages)
-        generated_content = ai_response.content.strip()
-        print(f"✅ Generated {len(generated_content)} characters of content")
-    except Exception as e:
-        print(f"❌ Error generating content: {e}")
-        generated_content = f"Error generating content: {str(e)}"
-    
-    # Update subsection with generated content
+    # update subsection with generated content
     updated_subsection = current_subsection.model_copy(update={
         "content": generated_content
     })
     
-    # Update literature survey
+    # update literature survey
     literature_survey = list(state.literature_survey)
     updated_section = literature_survey[current_section_idx].model_copy()
     
+    # extend list if needed
     while len(updated_section.subsections) <= current_subsection_idx:
         updated_section.subsections.append(None)
 
@@ -282,77 +279,58 @@ async def review_content(state: AgentState, *, config: Optional[RunnableConfig] 
     
     print("🔍 Reviewing content quality...")
     
-    # Get current subsection
+    # prepare content review prompt
     current_subsection = state.literature_survey[current_section_idx].subsections[current_subsection_idx]
-    
-    # Prepare content review prompt
     review_prompt = cfg.content_review_prompt.format(
         minimum_score=cfg.minimum_score,
         key_point=current_subsection.key_point_text,
         subsection=current_subsection.content
     )
     
-    # Create messages for LLM
+    # create messages for LLM
     system_msg = SystemMessage(content="You are an expert content reviewer for academic literature surveys.")
     user_msg = HumanMessage(content=review_prompt)
     messages = [system_msg, user_msg]
     
-    # Get LLM and generate review
+    # get LLM and generate content quality review
     llm = get_orchestrator_llm(cfg=cfg)
     print("🤖 Generating content review with LLM...")
-    
-    try:
-        ai_response = await llm.ainvoke(messages)
-        review_text = ai_response.content.strip()
+    ai_response = await llm.ainvoke(messages)
+    review_text = ai_response.content.strip()
+    review_data = json.loads(review_text)
+    score = review_data.get("score", 0)
+    meets_minimum = review_data.get("meets_minimum", False)
+    feedback_text = review_data.get("feedback", "")
         
-        # Parse JSON response
-        try:
-            review_data = json.loads(review_text)
-            score = review_data.get("score", 0)
-            meets_minimum = review_data.get("meets_minimum", False)
-            feedback_text = review_data.get("feedback", "")
-        except json.JSONDecodeError as e:
-            print(f"❌ Error parsing JSON response: {e}")
-            print(f"Raw response: {review_text}")
-            # Fallback logic
-            score = 0
-            meets_minimum = False
-            feedback_text = f"JSON parsing failed. Raw response: {review_text}"
-        
-        print(f"📊 Content review score: {score}/10, Passed: {meets_minimum}")
-        if feedback_text:
-            print(f"📝 Feedback: {feedback_text}")
+    print(f"📊 Content review score: {score}/10, Passed: {meets_minimum}")
+    if feedback_text:
+        print(f"📝 Feedback: {feedback_text}")
             
-    except Exception as e:
-        print(f"❌ Error during content review: {e}")
-        score = 0
-        meets_minimum = False
-        feedback_text = f"Error during review: {str(e)}"
     
-    # Create feedback object
+    # create feedback object
     feedback = ReviewFeedback(
         review_type=ReviewType.CONTENT,
         passed=meets_minimum,
         feedback=feedback_text,
-        suggestions=None  # Could be extracted from feedback_text if needed
+        suggestions=None
     )
     
-    # Add feedback to subsection
+    # add feedback to subsection
     updated_subsection = current_subsection.model_copy()
     updated_subsection.feedback_history.append(feedback)
     
-    # Update literature survey
+    # update literature survey
     literature_survey = list(state.literature_survey)
     updated_section = literature_survey[current_section_idx].model_copy()
     updated_section.subsections[current_subsection_idx] = updated_subsection
     literature_survey[current_section_idx] = updated_section
     
-    # Add AI messages to state for tracking
-    messages_update = list(state.messages) if state.messages else []
-    messages_update.extend([
-        HumanMessage(content=f"Content review request for subsection {current_subsection_idx+1}"),
-        AIMessage(content=f"Content review completed: Score {score}/10, {'PASSED' if meets_minimum else 'FAILED'}")
-    ])
+    # # Add AI messages to state for tracking
+    # messages_update = list(state.messages) if state.messages else []
+    # messages_update.extend([
+    #     HumanMessage(content=f"Content review request for subsection {current_subsection_idx+1}"),
+    #     AIMessage(content=f"Content review completed: Score {score}/10, {'PASSED' if meets_minimum else 'FAILED'}")
+    # ])
     
     # Determine next status
     if meets_minimum:
@@ -363,7 +341,8 @@ async def review_content(state: AgentState, *, config: Optional[RunnableConfig] 
         print("❌ Content review failed, ready for feedback processing")
     
     return {
-        "messages": messages_update,
+        # TODO: we probably want a seprate message history for each review thread!!!
+        # "messages": messages_update,
         "literature_survey": literature_survey,
         "refinement_progress": progress.model_copy(update={
             "current_subsection_status": next_status
@@ -383,42 +362,95 @@ async def review_grounding(state: AgentState, *, config: Optional[RunnableConfig
 
     print("🔍 Reviewing grounding and citations...")
     
-    # Get current subsection and prepare prompt
+    # get current subsection and prepare citation extraction prompt
     current_subsection = state.literature_survey[current_section_idx].subsections[current_subsection_idx]
     extract_citations_prompt = cfg.citation_identification_prompt.format(
         paper_segment=current_subsection.content
     )
-
-    # Create messages for LLM
     user_msg = HumanMessage(content=extract_citations_prompt)
     
-    # Get LLM and generate review
+    # get LLM and extract all citations from subsection
     llm = get_orchestrator_llm(cfg=cfg).with_config({"response_format": {"type": "json_object"}}) 
     print("🤖 Extracting citations from the subsection...")
     ai_response = await llm.ainvoke([user_msg])
-    review_text = ai_response.content.strip()
+    extraction_response = ai_response.content.strip()
     
-    # Parse JSON response
-    try:
-        citation_data = json.loads(review_text)
-        citation_claims = citation_data.get("citation_claims", [])
-        total_citations = citation_data.get("total_citations", 0)
-        print(f"📊 Extracted {total_citations} citations from subsection")
-    except json.JSONDecodeError as e:
-        print(f"❌ Error parsing JSON response: {e}")
-        print(f"Raw response: {review_text}")
-        # Fallback logic
-        citation_claims = []
-        total_citations = 0
+    # parse JSON response
+    citation_data = json.loads(extraction_response)
+    citation_extraction = CitationExtraction.from_json(citation_data)
+    print(f"📊 Extracted {citation_extraction.total_citations} citations from subsection")
 
-    pprint(citation_claims)
+    # aggregate all citation claims by paper arxiv ids (if is one of sources, gets adde to list)  
+    available_arxiv_ids = {paper.arxiv_id for paper in current_subsection.papers}
+    claims_by_arxiv_id: Dict[str, List[CitationClaim]] = {}
+    for claim in citation_extraction.citation_claims:
+        for cited_paper_id in claim.cited_papers:
+            if cited_paper_id in available_arxiv_ids:
+                if cited_paper_id not in claims_by_arxiv_id:
+                    claims_by_arxiv_id[cited_paper_id] = []
+                claims_by_arxiv_id[cited_paper_id].append(claim)
+            else:
+                # throw exception for hallucinated / mismatched citations 
+                # (papers taht are not in the subsection's sources)
+                raise ValueError(
+                    f"Hallucinated citation detected: ArXiv ID '{cited_paper_id}' not found in subsection papers. "
+                    f"Available papers: {list(available_arxiv_ids)}. "
+                    f"Citation claim: '{claim.citation}' in context: '{claim.full_sentence}'"
+                )
+
+    pprint(citation_extraction.citation_claims)
+
+
+    groudedness_reviews = []
+    for arxiv_id, claims in claims_by_arxiv_id.items():
+        # TODO: add some check at earlier stage (when .papers is populated) to ensure that there is no 
+        # dulicate papers in that list, maybe use a dictionary to construct it in the first place so
+        # duplications wont be even possible there?
+        full_paper = next(p for p in current_subsection.papers if p.arxiv_id == arxiv_id)
+        
+        # format claims for the grounding review prompt
+        groudedness_review_context = ""
+        for i, claim in enumerate(claims, 1):
+            groudedness_review_context += f"\n**Claim {i}:**\n"
+            groudedness_review_context += f"   Citation: {claim.citation}\n"
+            groudedness_review_context += f"   Supported claim: {claim.supported_claim}\n"
+            groudedness_review_context += f"   Full sentence: {claim.full_sentence}\n"
+            groudedness_review_context += f"   Context: {claim.surrounding_context}\n\n"
+        
+        # prepare grounding review prompt
+        grounding_review_prompt = cfg.review_grounding_prompt.format(
+            citation_claims=groudedness_review_context,
+            full_paper_content=full_paper.content.page_content
+        )
+        
+        # create message and invoke LLM
+        grounding_user_msg = HumanMessage(content=grounding_review_prompt)
+        print(f"🤖 Performing grounding review for paper {arxiv_id}...")
+        grounding_response = await llm.ainvoke([grounding_user_msg])
+        grounding_result = grounding_response.content.strip()
+        
+        # store raw response
+        groudedness_reviews.append({
+            "arxiv_id": arxiv_id,
+            "paper_title": full_paper.title,
+            "claims_count": len(claims),
+            "raw_response": grounding_result
+        })
+
+        pprint(grounding_result)
+        
+        print(f"✅ Grounding review completed for {full_paper.title}")
+
+    print(f"📊 Completed grounding reviews for {len(groudedness_reviews)} papers")
+
 
     # Perform grounding review based on extracted citations
     feedback = None
     
-    # Add feedback to subsection
+    # Add feedback and citations to subsection
     updated_subsection = current_subsection.model_copy()
     updated_subsection.feedback_history.append(feedback)
+    updated_subsection.citations = citation_extraction.citation_claims
     
     # Update literature survey
     literature_survey = list(state.literature_survey)
