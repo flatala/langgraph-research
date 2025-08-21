@@ -15,13 +15,13 @@ def process_feedback(state: AgentState, *, config: Optional[RunnableConfig] = No
     current_section_idx = progress.current_section_index
     current_subsection_idx = progress.current_subsection_index
     
-    print("📊 Processing feedback...")
+    print("Processing feedback...")
     
-    # Get current subsection feedback
+    # get current subsection feedback
     current_subsection = state.literature_survey[current_section_idx].subsections[current_subsection_idx]
     feedback_history = current_subsection.review_history
     
-    # Check if both content and grounding passed in the latest review round
+    # check if both content and grounding passed in the latest review round
     if feedback_history:
         latest_round = feedback_history[-1]
         content_passed = latest_round.content_review_passed
@@ -60,7 +60,7 @@ def start_revision(state: AgentState, *, config: Optional[RunnableConfig] = None
         "revision_count": current_subsection.revision_count + 1
     })
     
-    # Update literature survey
+    # update literature survey
     literature_survey = list(state.literature_survey)
     updated_section = literature_survey[current_section_idx].model_copy()
     updated_section.subsections[current_subsection_idx] = updated_subsection

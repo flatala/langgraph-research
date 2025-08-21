@@ -151,16 +151,16 @@ async def review_grounding(state: AgentState, *, config: Optional[RunnableConfig
 
     # Create or update review round with grounding results
     # Check if there's already a review round from content review
-    if current_subsection.feedback_history:
+    if current_subsection.review_history:
         # Update the most recent review round
-        latest_review_round = current_subsection.feedback_history[-1]
+        latest_review_round = current_subsection.review_history[-1]
         updated_review_round = latest_review_round.model_copy(update={
             "grounding_review_results": groudedness_reviews,
             "grounding_overall_assessment": grounding_overall,
             "grounding_review_passed": True  # Always passes per requirements
         })
         # Replace the last review round
-        feedback_history = current_subsection.feedback_history[:-1] + [updated_review_round]
+        feedback_history = current_subsection.review_history[:-1] + [updated_review_round]
     else:
         # Create new review round with only grounding results
         review_round = ReviewRound(

@@ -9,7 +9,7 @@ from agents.refinement_agent.nodes.state_management import (
 from agents.refinement_agent.nodes.writing import prepare_subsection_context, write_subsection
 from agents.refinement_agent.nodes.review_content import review_content
 from agents.refinement_agent.nodes.review_grounding import review_grounding
-from agents.refinement_agent.nodes.feedback import process_feedback, start_revision
+from agents.refinement_agent.nodes.feedback_processing import process_feedback, start_revision
 
 workflow = StateGraph(AgentState)
 

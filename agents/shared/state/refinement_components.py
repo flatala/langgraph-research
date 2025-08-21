@@ -115,8 +115,12 @@ class Subsection(BaseModel):
     papers: List[PaperWithSegements]
     key_point_text: str
     content: str
+
     revision_count: int = 0
-    feedback_history: List[ReviewRound] = Field(default_factory=list)
+    review_history: List[ReviewRound] = Field(default_factory=list)
+    content_review_messages: list = Field(default_factory=list)
+    grounding_review_messages: list = Field(default_factory=list)
+
     citations: List[CitationClaim] = Field(default_factory=list) 
 
 class Section(BaseModel):

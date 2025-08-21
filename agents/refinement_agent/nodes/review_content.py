@@ -90,7 +90,7 @@ async def review_content(state: AgentState, *, config: Optional[RunnableConfig] 
     
     # add review round to subsection
     updated_subsection = current_subsection.model_copy()
-    updated_subsection.feedback_history.append(review_round)
+    updated_subsection.review_history.append(review_round)
     
     # update literature survey
     literature_survey = list(state.literature_survey)
