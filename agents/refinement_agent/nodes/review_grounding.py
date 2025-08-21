@@ -4,7 +4,7 @@ from langchain_core.messages import HumanMessage
 from agents.refinement_agent.agent_config import RefinementAgentConfiguration as Configuration
 from agents.shared.state.main_state import AgentState
 from agents.shared.state.refinement_components import (
-    RefinementProgress, SubsectionStatus, ReviewRound,
+    SubsectionStatus, Subsection, ReviewRound,
     GroundingIssue, GroundingReviewFineGrainedResult, GroundingReviewOverallAssessment,
     CitationExtraction, CitationClaim
 )
@@ -21,11 +21,6 @@ load_dotenv(
     override=False,         
 )    
 
-def _has_no_grounding_issues(grounding_reviews: List[GroundingReviewFineGrainedResult]) -> bool:
-    """Check if grounding review passed by counting total issues across all papers."""
-    total_issues = sum(len(result.issues_found) for result in grounding_reviews)
-    return total_issues == 0
-
 async def review_grounding(state: AgentState, *, config: Optional[RunnableConfig] = None) -> Dict:
     """
     Perform grounding/citation review.
@@ -34,12 +29,65 @@ async def review_grounding(state: AgentState, *, config: Optional[RunnableConfig
     cfg = Configuration.from_runnable_config(config)
     progress = state.refinement_progress
     current_section_idx = progress.current_section_index
-    current_subsection_idx = progress.current_subsection_index
+    current_subsection_idx = progress.current_subsection_index    
+    current_subsection: Subsection = state.literature_survey[current_section_idx].subsections[current_subsection_idx]
 
     print("🔍 Reviewing grounding and citations...")
+
+    # extract citations from the subsection
+    claims_by_arxiv_id, citations = await _extract_citations(cfg, current_subsection)
+
+    # prepare per-papare groudedness checks
+    groudedness_reviews = []
+    grounding_overall = None
+    for arxiv_id, claims in claims_by_arxiv_id.items():
+        results, overall = await _review_grounding_for_paper(cfg, arxiv_id, claims, current_subsection)
+        groudedness_reviews.extend(results)
+        grounding_overall = overall  
+
+    # create or update review round with grounding results
+    # check if there's already a review round from content review
+    if current_subsection.review_history:
+        latest_review_round = current_subsection.review_history[-1]
+        updated_review_round = latest_review_round.model_copy(update={
+            "grounding_review_results": groudedness_reviews,
+            "grounding_overall_assessment": grounding_overall,
+            "grounding_review_passed": _has_no_grounding_issues(groudedness_reviews)
+        })
+        feedback_history = current_subsection.review_history[:-1] + [updated_review_round]
+    else:
+        review_round = ReviewRound(
+            grounding_review_results=groudedness_reviews,
+            grounding_overall_assessment=grounding_overall,
+            grounding_review_passed=_has_no_grounding_issues(groudedness_reviews)
+        )
+        feedback_history = [review_round]
     
-    # get current subsection and prepare citation extraction prompt
-    current_subsection = state.literature_survey[current_section_idx].subsections[current_subsection_idx]
+    # add feedback and citations to subsection
+    updated_subsection = current_subsection.model_copy(update={
+        "feedback_history": feedback_history,
+        "citations": citations
+    })
+    
+    # update literature survey
+    literature_survey = list(state.literature_survey)
+    updated_section = literature_survey[current_section_idx].model_copy()
+    updated_section.subsections[current_subsection_idx] = updated_subsection
+    literature_survey[current_section_idx] = updated_section
+    
+    return {
+        "literature_survey": literature_survey,
+        "refinement_progress": progress.model_copy(update={
+            "current_subsection_status": SubsectionStatus.READY_FOR_FEEDBACK
+        })
+    }
+
+
+async def _extract_citations(
+    cfg: Configuration, 
+    current_subsection: Subsection
+) -> tuple[Dict[str, List[CitationClaim]], List[CitationClaim]]:
+    
     extract_citations_prompt = cfg.citation_identification_prompt.format(
         paper_segment=current_subsection.content
     )
@@ -56,7 +104,7 @@ async def review_grounding(state: AgentState, *, config: Optional[RunnableConfig
     citation_extraction = CitationExtraction.from_json(citation_data)
     print(f"📊 Extracted {citation_extraction.total_citations} citations from subsection")
 
-    # aggregate all citation claims by paper arxiv ids (if is one of sources, gets adde to list)  
+    # aggregate all citation claims by paper arxiv ids (if is one of sources, gets add to list)  
     available_arxiv_ids = {paper.arxiv_id for paper in current_subsection.papers}
     claims_by_arxiv_id: Dict[str, List[CitationClaim]] = {}
     for claim in citation_extraction.citation_claims:
@@ -73,123 +121,90 @@ async def review_grounding(state: AgentState, *, config: Optional[RunnableConfig
                     f"Available papers: {list(available_arxiv_ids)}. "
                     f"Citation claim: '{claim.citation}' in context: '{claim.full_sentence}'"
                 )
-
-    pprint(citation_extraction.citation_claims)
-
-
-    groudedness_reviews = []
-    for arxiv_id, claims in claims_by_arxiv_id.items():
-        # TODO: add some check at earlier stage (when .papers is populated) to ensure that there is no 
-        # dulicate papers in that list, maybe use a dictionary to construct it in the first place so
-        # duplications wont be even possible there?
-        full_paper = next(p for p in current_subsection.papers if p.arxiv_id == arxiv_id)
-        
-        # format claims for the grounding review prompt
-        groudedness_review_context = ""
-        for i, claim in enumerate(claims, 1):
-            groudedness_review_context += f"\n**Claim {i}:**\n"
-            groudedness_review_context += f"   Citation: {claim.citation}\n"
-            groudedness_review_context += f"   Supported claim: {claim.supported_claim}\n"
-            groudedness_review_context += f"   Full sentence: {claim.full_sentence}\n"
-            groudedness_review_context += f"   Context: {claim.surrounding_context}\n\n"
-        
-        # prepare grounding review prompt
-        grounding_review_prompt = cfg.review_grounding_prompt.format(
-            citation_claims=groudedness_review_context,
-            full_paper_content=full_paper.content.page_content
-        )
-        
-        # create message and invoke LLM
-        grounding_user_msg = HumanMessage(content=grounding_review_prompt)
-        print(f"🤖 Performing grounding review for paper {arxiv_id}...")
-        grounding_response = await llm.ainvoke([grounding_user_msg])
-        grounding_result = grounding_response.content.strip()
-        
-        # parse JSON response
-        grounding_data = json.loads(grounding_result)
-        
-        # Parse fine-grained results
-        fine_grained_data = grounding_data.get("fine_grained_results", [])
-        parsed_results = []
-        for result_data in fine_grained_data:
-            issues_data = result_data.get("issues_found", [])
-            issues = []
-            for issue_data in issues_data:
-                issue = GroundingIssue(
-                    severity=issue_data.get("severity", ""),
-                    issue_type=issue_data.get("issue_type", ""),
-                    problematic_text=issue_data.get("problematic_text", ""),
-                    explanation=issue_data.get("explanation", ""),
-                    source_evidence=issue_data.get("source_evidence", ""),
-                    recommendation=issue_data.get("reccomendation", "")  # Note: typo in prompt
-                )
-                issues.append(issue)
             
-            grounding_result_obj = GroundingReviewFineGrainedResult(
+    return claims_by_arxiv_id, citation_extraction.citation_claims
+
+
+async def _review_grounding_for_paper(
+    cfg: Configuration,
+    arxiv_id: str,
+    claims: List[CitationClaim],
+    current_subsection: Subsection,
+) -> tuple[List[GroundingReviewFineGrainedResult], Optional[GroundingReviewOverallAssessment]]:
+    """
+    Perform grounding review for a single paper (one arXiv id).
+
+    Returns:
+        (fine_grained_results, overall_assessment_or_none)
+    """
+
+    llm = get_orchestrator_llm(cfg=cfg).with_config({"response_format": {"type": "json_object"}})
+    full_paper = next((p for p in current_subsection.papers if p.arxiv_id == arxiv_id), None)
+    if full_paper is None:
+        raise ValueError(f"Paper with arXiv id {arxiv_id} not found in subsection.papers")
+
+    # format claims into context string
+    groundedness_review_context = ""
+    for i, claim in enumerate(claims, 1):
+        groundedness_review_context += (
+            f"\n**Claim {i}:**\n"
+            f"   Citation: {claim.citation}\n"
+            f"   Supported claim: {claim.supported_claim}\n"
+            f"   Full sentence: {claim.full_sentence}\n"
+            f"   Context: {claim.surrounding_context}\n\n"
+        )
+
+    # prepare prompt
+    grounding_review_prompt = cfg.review_grounding_prompt.format(
+        citation_claims=groundedness_review_context,
+        full_paper_content=full_paper.content.page_content,
+    )
+
+    # LLM call
+    print(f"🤖 Performing grounding review for paper {arxiv_id}...")
+    grounding_response = await llm.ainvoke([HumanMessage(content=grounding_review_prompt)])
+    grounding_result_raw = grounding_response.content.strip()
+    grounding_data = json.loads(grounding_result_raw)
+
+    # fine-grained result parsing
+    fine_results: List[GroundingReviewFineGrainedResult] = []
+    for result_data in grounding_data.get("fine_grained_results", []):
+        issues = [
+            GroundingIssue(
+                severity=issue_data.get("severity", ""),
+                issue_type=issue_data.get("issue_type", ""),
+                problematic_text=issue_data.get("problematic_text", ""),
+                explanation=issue_data.get("explanation", ""),
+                source_evidence=issue_data.get("source_evidence", ""),
+                recommendation=issue_data.get("reccomendation", "") or issue_data.get("recommendation", ""),
+            )
+            for issue_data in result_data.get("issues_found", [])
+        ]
+
+        fine_results.append(
+            GroundingReviewFineGrainedResult(
                 citation=result_data.get("citation", ""),
                 supported_claim=result_data.get("supported_claim", ""),
                 verification_status=result_data.get("verification_status", ""),
                 accuracy_score=result_data.get("accuracy_score", 0),
                 issues_found=issues,
                 source_location=result_data.get("source_location", ""),
-                confidence_level=result_data.get("confidence_level", "")
+                confidence_level=result_data.get("confidence_level", ""),
             )
-            parsed_results.append(grounding_result_obj)
-        
-        # store parsed response
-        groudedness_reviews.extend(parsed_results)
-        
-        print(f"✅ Grounding review completed for {full_paper.title}: {len(parsed_results)} claims analyzed")
-
-    print(f"📊 Completed grounding reviews for {len(groudedness_reviews)} total claims")
-
-    # Parse overall assessment from the last paper's review (they should all have similar structure)
-    if groudedness_reviews and grounding_data:
-        overall_data = grounding_data.get("overall_assessment", {})
-        grounding_overall = GroundingReviewOverallAssessment(
-            total_claims_verified=overall_data.get("total_claims_verified", 0),
-            fully_supported_claims=overall_data.get("fully_supported_claims", 0),
-            problematic_claims=overall_data.get("problematic_claims", 0)
         )
-    else:
-        grounding_overall = None
 
-    # Create or update review round with grounding results
-    # Check if there's already a review round from content review
-    if current_subsection.review_history:
-        # Update the most recent review round
-        latest_review_round = current_subsection.review_history[-1]
-        updated_review_round = latest_review_round.model_copy(update={
-            "grounding_review_results": groudedness_reviews,
-            "grounding_overall_assessment": grounding_overall,
-            "grounding_review_passed": _has_no_grounding_issues(groudedness_reviews)
-        })
-        # Replace the last review round
-        feedback_history = current_subsection.review_history[:-1] + [updated_review_round]
-    else:
-        # Create new review round with only grounding results
-        review_round = ReviewRound(
-            grounding_review_results=groudedness_reviews,
-            grounding_overall_assessment=grounding_overall,
-            grounding_review_passed=_has_no_grounding_issues(groudedness_reviews)
-        )
-        feedback_history = [review_round]
-    
-    # Add feedback and citations to subsection
-    updated_subsection = current_subsection.model_copy(update={
-        "feedback_history": feedback_history,
-        "citations": citation_extraction.citation_claims
-    })
-    
-    # Update literature survey
-    literature_survey = list(state.literature_survey)
-    updated_section = literature_survey[current_section_idx].model_copy()
-    updated_section.subsections[current_subsection_idx] = updated_subsection
-    literature_survey[current_section_idx] = updated_section
-    
-    return {
-        "literature_survey": literature_survey,
-        "refinement_progress": progress.model_copy(update={
-            "current_subsection_status": SubsectionStatus.READY_FOR_FEEDBACK
-        })
-    }
+    overall_data = grounding_data.get("overall_assessment", {})
+    overall_assessment = GroundingReviewOverallAssessment(
+        total_claims_verified=overall_data.get("total_claims_verified", 0),
+        fully_supported_claims=overall_data.get("fully_supported_claims", 0),
+        problematic_claims=overall_data.get("problematic_claims", 0),
+    )
+
+    print(f"✅ Grounding review completed for {full_paper.title}: {len(fine_results)} claims analyzed")
+    return fine_results, overall_assessment
+
+
+def _has_no_grounding_issues(grounding_reviews: List[GroundingReviewFineGrainedResult]) -> bool:
+    """Check if grounding review passed by counting total issues across all papers."""
+    total_issues = sum(len(result.issues_found) for result in grounding_reviews)
+    return total_issues == 0
