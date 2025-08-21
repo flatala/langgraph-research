@@ -2,7 +2,7 @@ from langchain_core.runnables import RunnableConfig
 from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
 
 from agents.shared.state.main_state import AgentState
-from agents.shared.state.refinement_components import RefinementProgress, SectionStatus, SubsectionStatus, ReviewType
+from agents.shared.state.refinement_components import RefinementProgress, SectionStatus, SubsectionStatus
 from agents.shared.utils.llm_utils import get_text_llm, get_orchestrator_llm
 from agents.refinement_agent.agent_config import RefinementAgentConfiguration as Configuration
 

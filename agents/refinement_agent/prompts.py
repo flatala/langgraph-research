@@ -99,10 +99,19 @@ Your task is the following:
  Return your response as a JSON object of the following format: 
 
 {{
-    "score": <int>
-    "meets_minimum": <bool>
-    "reasoning": <string - the reasoning behind the given score refering to each of the provided quality standards>
-    "feedback": "<string - the feedback or empty string if the quality standards are met>"
+    "fine_grained_results": [
+        {{
+            "severity": "<critical|major|minor>",
+            "problematic_text": "<specific problematic part of the claim>",
+            "explanation": "<detailed explanation of the issue>",
+            "reccomendation": "<precise reccomendation for improvement>",
+        }},
+    ],
+    "overall_assessment": {{
+        "score": <int>
+        "meets_minimum": <bool>
+        "reasoning": <string - the reasoning behind the given score refering to each of the provided quality standards>
+    }}
 }}
 
 --------------------------
@@ -231,7 +240,7 @@ Output Format
 Return a JSON object with the following structure:
 
 {{
-    "verification_results": [
+    "fine_grained_results": [
         {{
             "citation": "<citation being verified>",
             "supported_claim": "<claim being supported by the citation>",
@@ -244,6 +253,7 @@ Return a JSON object with the following structure:
                     "problematic_text": "<specific problematic part of the claim>",
                     "explanation": "<detailed explanation of the issue>",
                     "source_evidence": "<what the source actually says or 'no supporting evidence found'>"
+                    "reccomendation": "<precise reccomendation for improvement>",
                 }}
             ],
             "source_location": "<section/page where supporting or contradicting evidence is found>",
@@ -254,12 +264,7 @@ Return a JSON object with the following structure:
         "total_claims_verified": <number>,
         "fully_supported_claims": <number>,
         "problematic_claims": <number>,
-        "grounding_quality_score": "<percentage or qualitative assessment>",
-        "main_issues": ["<list of most significant problems found>"]
-    }},
-    "recommendations": [
-        "<specific actionable suggestions for improving claim accuracy and proper attribution>"
-    ]
+    }}
 }}
 
 **Be thorough and strict in your evaluation. Any claim that cannot be directly verified or is misrepresented should be clearly flagged.**

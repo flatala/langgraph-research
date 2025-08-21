@@ -12,7 +12,9 @@ from agents.shared.state.planning_components import KeyPoint, Plan, SectionPlan
 from agents.shared.state.refinement_components import RefinementProgress
 from agents.shared.state.refinement_components import (
     RefinementProgress, Section, Subsection, PaperWithSegements,
-    SectionStatus, SubsectionStatus, ReviewType, ReviewFeedback,
+    SectionStatus, SubsectionStatus, ReviewRound,
+    ContentReviewFineGrainedResult, ContentReviewOverallAssessment,
+    GroundingIssue, GroundingReviewFineGrainedResult, GroundingReviewOverallAssessment,
     CitationExtraction, CitationClaim
 )
 from agents.shared.utils.llm_utils import get_text_llm, get_orchestrator_llm
@@ -298,26 +300,47 @@ async def review_content(state: AgentState, *, config: Optional[RunnableConfig] 
     ai_response = await llm.ainvoke(messages)
     review_text = ai_response.content.strip()
     review_data = json.loads(review_text)
-    score = review_data.get("score", 0)
-    meets_minimum = review_data.get("meets_minimum", False)
-    feedback_text = review_data.get("feedback", "")
+    
+    # Parse overall assessment
+    overall_assessment_data = review_data.get("overall_assessment", {})
+    score = overall_assessment_data.get("score", 0)
+    meets_minimum = overall_assessment_data.get("meets_minimum", False)
+    reasoning = overall_assessment_data.get("reasoning", "")
+    
+    # Parse fine-grained results
+    fine_grained_data = review_data.get("fine_grained_results", [])
+    fine_grained_results = []
+    for result_data in fine_grained_data:
+        result = ContentReviewFineGrainedResult(
+            severity=result_data.get("severity", ""),
+            problematic_text=result_data.get("problematic_text", ""),
+            explanation=result_data.get("explanation", ""),
+            recommendation=result_data.get("reccomendation", "")  # Note: typo in prompt
+        )
+        fine_grained_results.append(result)
+    
+    overall_assessment = ContentReviewOverallAssessment(
+        score=score,
+        meets_minimum=meets_minimum,
+        reasoning=reasoning
+    )
         
     print(f"📊 Content review score: {score}/10, Passed: {meets_minimum}")
-    if feedback_text:
-        print(f"📝 Feedback: {feedback_text}")
+    print(f"📝 Reasoning: {reasoning}")
+    if fine_grained_results:
+        print(f"🔍 Found {len(fine_grained_results)} fine-grained issues")
             
     
-    # create feedback object
-    feedback = ReviewFeedback(
-        review_type=ReviewType.CONTENT,
-        passed=meets_minimum,
-        feedback=feedback_text,
-        suggestions=None
+    # create review round with content review results
+    review_round = ReviewRound(
+        content_review_results=fine_grained_results,
+        content_overall_assessment=overall_assessment,
+        content_review_passed=meets_minimum
     )
     
-    # add feedback to subsection
+    # add review round to subsection
     updated_subsection = current_subsection.model_copy()
-    updated_subsection.feedback_history.append(feedback)
+    updated_subsection.feedback_history.append(review_round)
     
     # update literature survey
     literature_survey = list(state.literature_survey)
@@ -429,28 +452,81 @@ async def review_grounding(state: AgentState, *, config: Optional[RunnableConfig
         grounding_response = await llm.ainvoke([grounding_user_msg])
         grounding_result = grounding_response.content.strip()
         
-        # store raw response
-        groudedness_reviews.append({
-            "arxiv_id": arxiv_id,
-            "paper_title": full_paper.title,
-            "claims_count": len(claims),
-            "raw_response": grounding_result
-        })
-
-        pprint(grounding_result)
+        # parse JSON response
+        grounding_data = json.loads(grounding_result)
         
-        print(f"✅ Grounding review completed for {full_paper.title}")
+        # Parse fine-grained results
+        fine_grained_data = grounding_data.get("fine_grained_results", [])
+        parsed_results = []
+        for result_data in fine_grained_data:
+            issues_data = result_data.get("issues_found", [])
+            issues = []
+            for issue_data in issues_data:
+                issue = GroundingIssue(
+                    severity=issue_data.get("severity", ""),
+                    issue_type=issue_data.get("issue_type", ""),
+                    problematic_text=issue_data.get("problematic_text", ""),
+                    explanation=issue_data.get("explanation", ""),
+                    source_evidence=issue_data.get("source_evidence", ""),
+                    recommendation=issue_data.get("reccomendation", "")  # Note: typo in prompt
+                )
+                issues.append(issue)
+            
+            grounding_result_obj = GroundingReviewFineGrainedResult(
+                citation=result_data.get("citation", ""),
+                supported_claim=result_data.get("supported_claim", ""),
+                verification_status=result_data.get("verification_status", ""),
+                accuracy_score=result_data.get("accuracy_score", 0),
+                issues_found=issues,
+                source_location=result_data.get("source_location", ""),
+                confidence_level=result_data.get("confidence_level", "")
+            )
+            parsed_results.append(grounding_result_obj)
+        
+        # store parsed response
+        groudedness_reviews.extend(parsed_results)
+        
+        print(f"✅ Grounding review completed for {full_paper.title}: {len(parsed_results)} claims analyzed")
 
-    print(f"📊 Completed grounding reviews for {len(groudedness_reviews)} papers")
+    print(f"📊 Completed grounding reviews for {len(groudedness_reviews)} total claims")
 
+    # Parse overall assessment from the last paper's review (they should all have similar structure)
+    if groudedness_reviews and grounding_data:
+        overall_data = grounding_data.get("overall_assessment", {})
+        grounding_overall = GroundingReviewOverallAssessment(
+            total_claims_verified=overall_data.get("total_claims_verified", 0),
+            fully_supported_claims=overall_data.get("fully_supported_claims", 0),
+            problematic_claims=overall_data.get("problematic_claims", 0)
+        )
+    else:
+        grounding_overall = None
 
-    # Perform grounding review based on extracted citations
-    feedback = None
+    # Create or update review round with grounding results
+    # Check if there's already a review round from content review
+    if current_subsection.feedback_history:
+        # Update the most recent review round
+        latest_review_round = current_subsection.feedback_history[-1]
+        updated_review_round = latest_review_round.model_copy(update={
+            "grounding_review_results": groudedness_reviews,
+            "grounding_overall_assessment": grounding_overall,
+            "grounding_review_passed": True  # Always passes per requirements
+        })
+        # Replace the last review round
+        feedback_history = current_subsection.feedback_history[:-1] + [updated_review_round]
+    else:
+        # Create new review round with only grounding results
+        review_round = ReviewRound(
+            grounding_review_results=groudedness_reviews,
+            grounding_overall_assessment=grounding_overall,
+            grounding_review_passed=True  # Always passes per requirements
+        )
+        feedback_history = [review_round]
     
     # Add feedback and citations to subsection
-    updated_subsection = current_subsection.model_copy()
-    updated_subsection.feedback_history.append(feedback)
-    updated_subsection.citations = citation_extraction.citation_claims
+    updated_subsection = current_subsection.model_copy(update={
+        "feedback_history": feedback_history,
+        "citations": citation_extraction.citation_claims
+    })
     
     # Update literature survey
     literature_survey = list(state.literature_survey)
@@ -481,9 +557,14 @@ def process_feedback(state: AgentState, *, config: Optional[RunnableConfig] = No
     current_subsection = state.literature_survey[current_section_idx].subsections[current_subsection_idx]
     feedback_history = current_subsection.feedback_history
     
-    # Check if both content and grounding passed
-    content_passed = any(f.review_type == ReviewType.CONTENT and f.passed for f in feedback_history)
-    grounding_passed = any(f.review_type == ReviewType.GROUNDING and f.passed for f in feedback_history)
+    # Check if both content and grounding passed in the latest review round
+    if feedback_history:
+        latest_round = feedback_history[-1]
+        content_passed = latest_round.content_review_passed
+        grounding_passed = latest_round.grounding_review_passed
+    else:
+        content_passed = False
+        grounding_passed = False
     
     if content_passed and grounding_passed:
         print("✅ All reviews passed - subsection approved!")

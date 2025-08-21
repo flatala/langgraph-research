@@ -18,15 +18,49 @@ class SectionStatus(str, Enum):
     IN_PROGRESS = "in_progress"      
     COMPLETED = "completed"           
 
-class ReviewType(str, Enum):
-    CONTENT = "content"
-    GROUNDING = "grounding"
+class ContentReviewFineGrainedResult(BaseModel):
+    severity: str  # critical|major|minor
+    problematic_text: str
+    explanation: str
+    recommendation: str
 
-class ReviewFeedback(BaseModel):
-    review_type: ReviewType
-    passed: bool
-    feedback: str
-    suggestions: Optional[List[str]] = None
+class ContentReviewOverallAssessment(BaseModel):
+    score: int
+    meets_minimum: bool
+    reasoning: str
+
+class GroundingIssue(BaseModel):
+    severity: str  # critical|major|minor
+    issue_type: str  # misrepresentation|overstatement|factual_error|out_of_context|unsupported_claim|scope_overreach
+    problematic_text: str
+    explanation: str
+    source_evidence: str
+    recommendation: str
+
+class GroundingReviewFineGrainedResult(BaseModel):
+    citation: str
+    supported_claim: str
+    verification_status: str  # fully_supported|partially_supported|unsupported|misrepresented|contradicted
+    accuracy_score: int  # 1-10 scale
+    issues_found: List[GroundingIssue]
+    source_location: str
+    confidence_level: str  # high|medium|low
+
+class GroundingReviewOverallAssessment(BaseModel):
+    total_claims_verified: int
+    fully_supported_claims: int
+    problematic_claims: int
+
+class ReviewRound(BaseModel):
+    # Content review results
+    content_review_results: Optional[List[ContentReviewFineGrainedResult]] = None
+    content_overall_assessment: Optional[ContentReviewOverallAssessment] = None
+    content_review_passed: bool = False
+    
+    # Grounding review results  
+    grounding_review_results: Optional[List[GroundingReviewFineGrainedResult]] = None
+    grounding_overall_assessment: Optional[GroundingReviewOverallAssessment] = None
+    grounding_review_passed: bool = True  # Always passes since no grounding issues allowed
 
 class CitationClaim(BaseModel):
     citation: str
@@ -82,7 +116,7 @@ class Subsection(BaseModel):
     key_point_text: str
     content: str
     revision_count: int = 0
-    feedback_history: List[ReviewFeedback] = Field(default_factory=list)
+    feedback_history: List[ReviewRound] = Field(default_factory=list)
     citations: List[CitationClaim] = Field(default_factory=list) 
 
 class Section(BaseModel):
@@ -146,7 +180,7 @@ class RefinementProgress(BaseModel):
     current_subsection_index: int = 0
     current_subsection_status: SubsectionStatus = SubsectionStatus.READY_FOR_CONTEXT_PREP
     
-    current_review_status: Optional[ReviewType] = None
+    current_review_status: Optional[str] = None
 
     completed_sections: List[int] = Field(default_factory=list)
     completed_subsections: Dict[int, List[int]] = Field(default_factory=dict)
