@@ -60,7 +60,7 @@ class ReviewRound(BaseModel):
     # Grounding review results  
     grounding_review_results: Optional[List[GroundingReviewFineGrainedResult]] = None
     grounding_overall_assessment: Optional[GroundingReviewOverallAssessment] = None
-    grounding_review_passed: bool = True  # Always passes since no grounding issues allowed
+    grounding_review_passed: bool = False
 
 class CitationClaim(BaseModel):
     citation: str

@@ -21,6 +21,11 @@ load_dotenv(
     override=False,         
 )    
 
+def _has_no_grounding_issues(grounding_reviews: List[GroundingReviewFineGrainedResult]) -> bool:
+    """Check if grounding review passed by counting total issues across all papers."""
+    total_issues = sum(len(result.issues_found) for result in grounding_reviews)
+    return total_issues == 0
+
 async def review_grounding(state: AgentState, *, config: Optional[RunnableConfig] = None) -> Dict:
     """
     Perform grounding/citation review.
@@ -157,7 +162,7 @@ async def review_grounding(state: AgentState, *, config: Optional[RunnableConfig
         updated_review_round = latest_review_round.model_copy(update={
             "grounding_review_results": groudedness_reviews,
             "grounding_overall_assessment": grounding_overall,
-            "grounding_review_passed": True  # Always passes per requirements
+            "grounding_review_passed": _has_no_grounding_issues(groudedness_reviews)
         })
         # Replace the last review round
         feedback_history = current_subsection.review_history[:-1] + [updated_review_round]
@@ -166,7 +171,7 @@ async def review_grounding(state: AgentState, *, config: Optional[RunnableConfig
         review_round = ReviewRound(
             grounding_review_results=groudedness_reviews,
             grounding_overall_assessment=grounding_overall,
-            grounding_review_passed=True  # Always passes per requirements
+            grounding_review_passed=_has_no_grounding_issues(groudedness_reviews)
         )
         feedback_history = [review_round]
     
