@@ -29,6 +29,7 @@ class ContentReviewOverallAssessment(BaseModel):
     meets_minimum: bool
     reasoning: str
 
+# TODO: simplyfy grounding review structure to match the one of content review more
 class GroundingIssue(BaseModel):
     severity: str  # critical|major|minor
     issue_type: str  # misrepresentation|overstatement|factual_error|out_of_context|unsupported_claim|scope_overreach
@@ -44,7 +45,7 @@ class GroundingReviewFineGrainedResult(BaseModel):
     accuracy_score: int  # 1-10 scale
     issues_found: List[GroundingIssue]
     source_location: str
-    confidence_level: str  # high|medium|low
+    confidence_level: str
 
 class GroundingReviewOverallAssessment(BaseModel):
     total_claims_verified: int

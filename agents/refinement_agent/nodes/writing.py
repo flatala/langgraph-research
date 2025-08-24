@@ -203,6 +203,7 @@ async def write_subsection(state: AgentState, *, config: Optional[RunnableConfig
         })
     }
 
+
 def _prepare_paper_segments_string(papers: List[PaperWithSegements]) -> str:
     """Format paper segments into structured text for LLM prompt context."""
     paper_segments_text = ""
@@ -228,6 +229,7 @@ def _prepare_paper_segments_string(papers: List[PaperWithSegements]) -> str:
         paper_segments_text += "\n"
 
     return paper_segments_text
+
 
 def _prepare_completed_content_string(sections: List[Section]) -> str:
     """Format already completed sections and subsections into context string for LLM."""
