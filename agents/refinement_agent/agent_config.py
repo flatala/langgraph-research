@@ -52,6 +52,16 @@ class RefinementAgentConfiguration(MainConfiguration):
         },
     )
 
+    grounding_refinement_prompt: str = field(
+        default=prompts.GROUNDING_REFINEMENT_PROMPT,
+        metadata={
+            "description": "The prompt template to use for refining subsections to fix specific grounding issues. "
+            "Expects f-string arguments: issue_type (str), severity (str), problematic_text (str), explanation (str), "
+            "source_evidence (str), recommendation (str), citation (str), supported_claim (str), verification_status (str), "
+            "current_subsection (str), full_paper_content (str)"
+        },
+    )
+
     minimum_score: int = field(
         default=7,
         metadata={

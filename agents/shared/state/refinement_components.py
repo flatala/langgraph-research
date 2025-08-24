@@ -29,21 +29,18 @@ class ContentReviewOverallAssessment(BaseModel):
     meets_minimum: bool
     reasoning: str
 
-# TODO: simplyfy grounding review structure to match the one of content review more
-class GroundingIssue(BaseModel):
+class GroundingReviewFineGrainedResult(BaseModel):
+    paper_id: str  # ArXiv ID for the paper this issue belongs to
     severity: str  # critical|major|minor
     issue_type: str  # misrepresentation|overstatement|factual_error|out_of_context|unsupported_claim|scope_overreach
-    problematic_text: str
-    explanation: str
-    source_evidence: str
-    recommendation: str
-
-class GroundingReviewFineGrainedResult(BaseModel):
     citation: str
     supported_claim: str
     verification_status: str  # fully_supported|partially_supported|unsupported|misrepresented|contradicted
     accuracy_score: int  # 1-10 scale
-    issues_found: List[GroundingIssue]
+    problematic_text: str
+    explanation: str
+    source_evidence: str
+    recommendation: str
     source_location: str
     confidence_level: str
 

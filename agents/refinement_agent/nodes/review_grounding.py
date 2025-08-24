@@ -5,7 +5,7 @@ from agents.refinement_agent.agent_config import RefinementAgentConfiguration as
 from agents.shared.state.main_state import AgentState
 from agents.shared.state.refinement_components import (
     SubsectionStatus, Subsection, ReviewRound,
-    GroundingIssue, GroundingReviewFineGrainedResult, GroundingReviewOverallAssessment,
+    GroundingReviewFineGrainedResult, GroundingReviewOverallAssessment,
     CitationExtraction, CitationClaim
 )
 from agents.shared.utils.llm_utils import get_orchestrator_llm
@@ -166,28 +166,22 @@ async def _review_grounding_for_paper(
     grounding_result_raw = grounding_response.content.strip()
     grounding_data = json.loads(grounding_result_raw)
 
-    # fine-grained result parsing
+    # fine-grained result parsing - each result is now an individual issue
     fine_results: List[GroundingReviewFineGrainedResult] = []
     for result_data in grounding_data.get("fine_grained_results", []):
-        issues = [
-            GroundingIssue(
-                severity=issue_data.get("severity", ""),
-                issue_type=issue_data.get("issue_type", ""),
-                problematic_text=issue_data.get("problematic_text", ""),
-                explanation=issue_data.get("explanation", ""),
-                source_evidence=issue_data.get("source_evidence", ""),
-                recommendation=issue_data.get("reccomendation", "") or issue_data.get("recommendation", ""),
-            )
-            for issue_data in result_data.get("issues_found", [])
-        ]
-
         fine_results.append(
             GroundingReviewFineGrainedResult(
+                paper_id=arxiv_id,  # Add paper ID for traceability
+                severity=result_data.get("severity", ""),
+                issue_type=result_data.get("issue_type", ""),
                 citation=result_data.get("citation", ""),
                 supported_claim=result_data.get("supported_claim", ""),
                 verification_status=result_data.get("verification_status", ""),
                 accuracy_score=result_data.get("accuracy_score", 0),
-                issues_found=issues,
+                problematic_text=result_data.get("problematic_text", ""),
+                explanation=result_data.get("explanation", ""),
+                source_evidence=result_data.get("source_evidence", ""),
+                recommendation=result_data.get("recommendation", "") or result_data.get("reccomendation", ""),
                 source_location=result_data.get("source_location", ""),
                 confidence_level=result_data.get("confidence_level", ""),
             )
@@ -206,5 +200,8 @@ async def _review_grounding_for_paper(
 
 def _has_no_grounding_issues(grounding_reviews: List[GroundingReviewFineGrainedResult]) -> bool:
     """Check if grounding review passed by counting total issues across all papers."""
-    total_issues = sum(len(result.issues_found) for result in grounding_reviews)
-    return total_issues == 0
+    # Since each result is now an individual issue, the count is simply the list length
+    # But we only count results that actually represent issues (not fully supported claims)
+    issues = [result for result in grounding_reviews 
+             if result.verification_status in ["partially_supported", "unsupported", "misrepresented", "contradicted"]]
+    return len(issues) == 0

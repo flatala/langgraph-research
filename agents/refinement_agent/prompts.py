@@ -242,20 +242,16 @@ Return a JSON object with the following structure:
 {{
     "fine_grained_results": [
         {{
+            "severity": "<critical|major|minor>",
+            "issue_type": "<misrepresentation|overstatement|factual_error|out_of_context|unsupported_claim|scope_overreach>",
             "citation": "<citation being verified>",
             "supported_claim": "<claim being supported by the citation>",
             "verification_status": "<fully_supported|partially_supported|unsupported|misrepresented|contradicted>",
             "accuracy_score": <1-10 scale of how accurately the claim represents the source>,
-            "issues_found": [
-                {{
-                    "severity": "<critical|major|minor>",
-                    "issue_type": "<misrepresentation|overstatement|factual_error|out_of_context|unsupported_claim|scope_overreach>",
-                    "problematic_text": "<specific problematic part of the claim>",
-                    "explanation": "<detailed explanation of the issue>",
-                    "source_evidence": "<what the source actually says or 'no supporting evidence found'>"
-                    "reccomendation": "<precise reccomendation for improvement>",
-                }}
-            ],
+            "problematic_text": "<specific problematic part of the claim>",
+            "explanation": "<detailed explanation of the issue>",
+            "source_evidence": "<what the source actually says or 'no supporting evidence found'>",
+            "recommendation": "<precise recommendation for improvement>",
             "source_location": "<section/page where supporting or contradicting evidence is found>",
             "confidence_level": "<high|medium|low> confidence in verification"
         }}
@@ -270,4 +266,68 @@ Return a JSON object with the following structure:
 **Be thorough and strict in your evaluation. Any claim that cannot be directly verified or is misrepresented should be clearly flagged.**
 
 **Return only the JSON object. No additional text or explanations.**
+'''
+
+
+GROUNDING_REFINEMENT_PROMPT = '''
+───────────────
+Task
+───────────────
+Refine the provided subsection to fix a specific grounding issue that was identified during review. You must address the problematic claim while maintaining the overall flow and quality of the subsection.
+
+───────────────
+Grounding Issue to Fix
+───────────────
+**Issue Type**: {issue_type}
+**Severity**: {severity}
+**Problematic Text**: {problematic_text}
+**Issue Explanation**: {explanation}
+**Source Evidence**: {source_evidence}
+**Recommendation**: {recommendation}
+
+**Citation**: {citation}
+**Supported Claim**: {supported_claim}
+**Verification Status**: {verification_status}
+
+───────────────
+Current Subsection Content
+───────────────
+{current_subsection}
+
+───────────────
+Full Paper Content for Reference
+───────────────
+{full_paper_content}
+
+───────────────
+Refinement Guidelines
+───────────────
+1. **Address the Specific Issue**: Focus on fixing the identified grounding problem
+2. **Maintain Accuracy**: Ensure all claims are properly supported by the source paper
+3. **Preserve Structure**: Keep the overall flow and organization of the subsection
+4. **Evidence-Based**: Only use information explicitly present in the provided paper content
+5. **Academic Tone**: Maintain scholarly, objective language appropriate for graduate-level work
+6. **Citation Integrity**: Ensure citations accurately reflect what the source paper actually says
+
+───────────────
+Refinement Strategies
+───────────────
+- **For Misrepresentation**: Correct the claim to accurately reflect the source findings
+- **For Overstatement**: Tone down claims to match the actual scope of the source
+- **For Factual Errors**: Replace incorrect information with accurate details from the source
+- **For Out of Context**: Provide proper context or remove the problematic claim
+- **For Unsupported Claims**: Either find supporting evidence in the paper or remove the claim
+- **For Scope Overreach**: Narrow the claim to match what the source actually demonstrates
+
+───────────────
+Output Format
+───────────────
+Return the refined subsection content as clean markdown text with:
+- No title or heading (this will be added separately)
+- Proper in-text citations using the specified format: [Author_LastName_YEAR(ArxivID)]
+- 2-4 well-developed paragraphs
+- Academic paragraph structure with clear topic sentences
+- The grounding issue completely resolved
+
+**Return only the refined subsection content. No preamble, explanations, or additional formatting.**
 '''
