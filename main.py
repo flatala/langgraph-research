@@ -59,17 +59,18 @@ if __name__ == "__main__":
         configurable={"thread_id": thread_id}
     )
 
-    img_bytes = graph.get_graph().draw_mermaid_png()
-    with open("graph_diagrams/main_graph.png", "wb") as f:
-        f.write(img_bytes)
+    # Generate Mermaid diagrams (viewable in VS Code with Mermaid extensions or on GitHub)
+    mermaid_syntax = graph.get_graph().draw_mermaid()
+    with open("graph_diagrams/main_graph.mmd", "w") as f:
+        f.write(mermaid_syntax)
 
-    img_bytes = planning_graph.get_graph().draw_mermaid_png()
-    with open("graph_diagrams/planning_graph.png", "wb") as f:
-        f.write(img_bytes)
+    mermaid_syntax = planning_graph.get_graph().draw_mermaid()
+    with open("graph_diagrams/planning_graph.mmd", "w") as f:
+        f.write(mermaid_syntax)
 
-    img_bytes = refinement_graph.get_graph().draw_mermaid_png()
-    with open("graph_diagrams/refinement_graph.png", "wb") as f:
-        f.write(img_bytes)
+    mermaid_syntax = refinement_graph.get_graph().draw_mermaid()
+    with open("graph_diagrams/refinement_graph.mmd", "w") as f:
+        f.write(mermaid_syntax)
 
     final_state_dict = asyncio.run(run_workflow_async(init_state, graph, graph_config))
     final_state = AgentState(**final_state_dict)

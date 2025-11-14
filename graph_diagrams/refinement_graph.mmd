@@ -1,0 +1,78 @@
+---
+config:
+  flowchart:
+    curve: linear
+---
+graph TD;
+	__start__(<p>__start__</p>)
+	initialise_refinement_progress(initialise_refinement_progress)
+	prepare_subsection_context(prepare_subsection_context)
+	write_subsection(write_subsection)
+	review_content(review_content)
+	review_grounding(review_grounding)
+	process_feedback(process_feedback)
+	start_revision(start_revision)
+	advance_to_next(advance_to_next)
+	complete_refinement(complete_refinement)
+	__end__(<p>__end__</p>)
+	__start__ --> initialise_refinement_progress;
+	advance_to_next -. &nbsp;process_feedback&nbsp; .-> __end__;
+	advance_to_next -.-> complete_refinement;
+	advance_to_next -.-> prepare_subsection_context;
+	advance_to_next -.-> review_content;
+	advance_to_next -.-> review_grounding;
+	advance_to_next -.-> start_revision;
+	advance_to_next -.-> write_subsection;
+	initialise_refinement_progress -. &nbsp;process_feedback&nbsp; .-> __end__;
+	initialise_refinement_progress -.-> advance_to_next;
+	initialise_refinement_progress -.-> complete_refinement;
+	initialise_refinement_progress -.-> prepare_subsection_context;
+	initialise_refinement_progress -.-> review_content;
+	initialise_refinement_progress -.-> review_grounding;
+	initialise_refinement_progress -.-> start_revision;
+	initialise_refinement_progress -.-> write_subsection;
+	prepare_subsection_context -. &nbsp;process_feedback&nbsp; .-> __end__;
+	prepare_subsection_context -.-> advance_to_next;
+	prepare_subsection_context -.-> complete_refinement;
+	prepare_subsection_context -.-> review_content;
+	prepare_subsection_context -.-> review_grounding;
+	prepare_subsection_context -.-> start_revision;
+	prepare_subsection_context -.-> write_subsection;
+	review_content -. &nbsp;process_feedback&nbsp; .-> __end__;
+	review_content -.-> advance_to_next;
+	review_content -.-> complete_refinement;
+	review_content -.-> prepare_subsection_context;
+	review_content -.-> review_grounding;
+	review_content -.-> start_revision;
+	review_content -.-> write_subsection;
+	review_grounding -. &nbsp;process_feedback&nbsp; .-> __end__;
+	review_grounding -.-> advance_to_next;
+	review_grounding -.-> complete_refinement;
+	review_grounding -.-> prepare_subsection_context;
+	review_grounding -.-> review_content;
+	review_grounding -.-> start_revision;
+	review_grounding -.-> write_subsection;
+	start_revision -. &nbsp;process_feedback&nbsp; .-> __end__;
+	start_revision -.-> advance_to_next;
+	start_revision -.-> complete_refinement;
+	start_revision -.-> prepare_subsection_context;
+	start_revision -.-> review_content;
+	start_revision -.-> review_grounding;
+	start_revision -.-> write_subsection;
+	write_subsection -. &nbsp;process_feedback&nbsp; .-> __end__;
+	write_subsection -.-> advance_to_next;
+	write_subsection -.-> complete_refinement;
+	write_subsection -.-> prepare_subsection_context;
+	write_subsection -.-> review_content;
+	write_subsection -.-> review_grounding;
+	write_subsection -.-> start_revision;
+	complete_refinement --> __end__;
+	advance_to_next -.-> advance_to_next;
+	prepare_subsection_context -.-> prepare_subsection_context;
+	review_content -.-> review_content;
+	review_grounding -.-> review_grounding;
+	start_revision -.-> start_revision;
+	write_subsection -.-> write_subsection;
+	classDef default fill:#f2f0ff,line-height:1.2
+	classDef first fill-opacity:0
+	classDef last fill:#bfb6fc
