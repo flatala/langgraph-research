@@ -1,53 +1,49 @@
 from agents.shared.main_config import MainConfiguration
 from dotenv import load_dotenv
 from pathlib import Path
-from typing import Union
-from langchain_openai import ChatOpenAI
-from langchain_anthropic import ChatAnthropic
-from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 
-load_dotenv(                
+load_dotenv(
     Path(__file__).resolve().parent.parent.parent.parent / ".env",
-    override=False,         
-)    
+    override=False,
+)
 
-LLMType = Union[ChatOpenAI, ChatAnthropic, ChatGoogleGenerativeAI]
+LLMType = ChatOpenAI
 
-def _create_llm(provider: str, model: str, api_key: str) -> LLMType:
-    """Factory function to create LLM instances based on provider."""
-    if provider == "openai":
-        return ChatOpenAI(
-            model=model,
-            api_key=api_key,
-            streaming=True,
-        )
-    elif provider == "anthropic":
-        return ChatAnthropic(
-            model=model,
-            api_key=api_key,
-            streaming=True,
-        )
-    elif provider == "google":
-        return ChatGoogleGenerativeAI(
-            model=model,
-            google_api_key=api_key,
-            streaming=True,
-        )
-    else:
-        raise ValueError(f"Unsupported provider: {provider}. Supported providers are: openai, anthropic, google")
 
 def get_orchestrator_llm(cfg: MainConfiguration) -> LLMType:
-    """Get the instance of the strongest orchestrating LLM."""
-    api_key = getattr(cfg, f"{cfg.orchestrator_provider}_api_key")
-    if not api_key:
-        raise ValueError(f"API key not found for provider: {cfg.orchestrator_provider}")
-        
-    return _create_llm(cfg.orchestrator_provider, cfg.orchestrator_model, api_key)
+    """Get the instance of the strongest orchestrating LLM via OpenRouter."""
+    if not cfg.openrouter_api_key:
+        raise ValueError("OpenRouter API key not found. Please set OPENROUTER_API_KEY in .env")
+
+    return ChatOpenAI(
+        model=cfg.orchestrator_model,
+        api_key=cfg.openrouter_api_key,
+        base_url=cfg.openrouter_base_url,
+        streaming=True,
+    )
+
 
 def get_text_llm(cfg: MainConfiguration) -> LLMType:
-    """Get the instance of the text processing LLM."""
-    api_key = getattr(cfg, f"{cfg.text_provider}_api_key")
-    if not api_key:
-        raise ValueError(f"API key not found for provider: {cfg.text_provider}")
-    
-    return _create_llm(cfg.text_provider, cfg.text_model, api_key)
+    """Get the instance of the text processing LLM via OpenRouter."""
+    if not cfg.openrouter_api_key:
+        raise ValueError("OpenRouter API key not found. Please set OPENROUTER_API_KEY in .env")
+
+    return ChatOpenAI(
+        model=cfg.text_model,
+        api_key=cfg.openrouter_api_key,
+        base_url=cfg.openrouter_base_url,
+        streaming=True,
+    )
+
+
+def get_embedding_model(cfg: MainConfiguration) -> OpenAIEmbeddings:
+    """Get the instance of the embeddings model via OpenRouter."""
+    if not cfg.openrouter_api_key:
+        raise ValueError("OpenRouter API key not found. Please set OPENROUTER_API_KEY in .env")
+
+    return OpenAIEmbeddings(
+        model=cfg.embedding_model,
+        api_key=cfg.openrouter_api_key,
+        base_url=cfg.openrouter_base_url,
+    )

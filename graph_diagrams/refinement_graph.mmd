@@ -14,6 +14,7 @@ graph TD;
 	start_revision(start_revision)
 	advance_to_next(advance_to_next)
 	complete_refinement(complete_refinement)
+	cleanup_temp_cache(cleanup_temp_cache)
 	__end__(<p>__end__</p>)
 	__start__ --> initialise_refinement_progress;
 	advance_to_next -. &nbsp;process_feedback&nbsp; .-> __end__;
@@ -23,6 +24,7 @@ graph TD;
 	advance_to_next -.-> review_grounding;
 	advance_to_next -.-> start_revision;
 	advance_to_next -.-> write_subsection;
+	complete_refinement --> cleanup_temp_cache;
 	initialise_refinement_progress -. &nbsp;process_feedback&nbsp; .-> __end__;
 	initialise_refinement_progress -.-> advance_to_next;
 	initialise_refinement_progress -.-> complete_refinement;
@@ -66,7 +68,7 @@ graph TD;
 	write_subsection -.-> review_content;
 	write_subsection -.-> review_grounding;
 	write_subsection -.-> start_revision;
-	complete_refinement --> __end__;
+	cleanup_temp_cache --> __end__;
 	advance_to_next -.-> advance_to_next;
 	prepare_subsection_context -.-> prepare_subsection_context;
 	review_content -.-> review_content;

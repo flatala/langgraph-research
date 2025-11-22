@@ -5,7 +5,6 @@ config:
 ---
 graph TD;
 	__start__([<p>__start__</p>]):::first
-	load_cached_plan(load_cached_plan)
 	append_system_prompt(append_system_prompt)
 	refine_problem_statement(refine_problem_statement)
 	tools_1(tools_1)
@@ -15,8 +14,7 @@ graph TD;
 	reflect_on_papers(reflect_on_papers)
 	parse_plan(parse_plan)
 	__end__([<p>__end__</p>]):::last
-	__start__ -. &nbsp;start_from_scratch&nbsp; .-> append_system_prompt;
-	__start__ -.-> load_cached_plan;
+	__start__ --> append_system_prompt;
 	append_system_prompt --> refine_problem_statement;
 	parse_queries_add_plan_prompt --> plan_literature_review;
 	plan_literature_review -. &nbsp;__end__&nbsp; .-> parse_plan;
@@ -26,7 +24,6 @@ graph TD;
 	reflect_on_papers --> plan_literature_review;
 	tools_1 --> refine_problem_statement;
 	tools_2 --> reflect_on_papers;
-	load_cached_plan --> __end__;
 	parse_plan --> __end__;
 	classDef default fill:#f2f0ff,line-height:1.2
 	classDef first fill-opacity:0

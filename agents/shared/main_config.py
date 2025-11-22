@@ -3,95 +3,40 @@ from dataclasses import dataclass, field
 from typing import Annotated, Optional
 from langchain_core.runnables import RunnableConfig, ensure_config
 from dataclasses import fields
-from pathlib import Path
 import os
-import json
-
-
-def _load_model_config() -> dict:
-    """Load model configuration from model_config.json file."""
-    config_path = Path(__file__).resolve().parent.parent.parent / "model_config.json"
-    
-    if not config_path.exists():
-        return {}
-    
-    try:
-        with open(config_path, 'r') as f:
-            config = json.load(f)
-            
-        # Validate the configuration structure
-        if not isinstance(config, dict):
-            raise ValueError("Configuration must be a JSON object")
-            
-        # Extract and validate model configurations
-        model_config = {}
-        
-        if "orchestrator" in config:
-            orch = config["orchestrator"]
-            if not isinstance(orch, dict) or "provider" not in orch or "model" not in orch:
-                raise ValueError("orchestrator configuration must have 'provider' and 'model' fields")
-            model_config["orchestrator_provider"] = orch["provider"]
-            model_config["orchestrator_model"] = orch["model"]
-            
-        if "text" in config:
-            text = config["text"]
-            if not isinstance(text, dict) or "provider" not in text or "model" not in text:
-                raise ValueError("text configuration must have 'provider' and 'model' fields")
-            model_config["text_provider"] = text["provider"]
-            model_config["text_model"] = text["model"]
-            
-        # Validate providers
-        supported_providers = {"openai", "anthropic", "google"}
-        for key in ["orchestrator_provider", "text_provider"]:
-            if key in model_config and model_config[key] not in supported_providers:
-                raise ValueError(f"Unsupported provider: {model_config[key]}. Supported: {supported_providers}")
-                
-        return model_config
-        
-    except json.JSONDecodeError as e:
-        raise ValueError(f"Invalid JSON in model_config.json: {e}")
-    except Exception as e:
-        raise ValueError(f"Error loading model_config.json: {e}")
 
 
 @dataclass(kw_only=True)
 class MainConfiguration:
-    """The main configuration for LLM providers and API keys."""
+    """The main configuration for OpenRouter API."""
 
-    # API KEYS
-    
-    openai_api_key: Optional[str] = field(
-        default_factory=lambda: os.getenv("OPENAI_API_KEY")
-    )
-    
-    anthropic_api_key: Optional[str] = field(
-        default_factory=lambda: os.getenv("ANTHROPIC_API_KEY")
-    )
-    
-    google_api_key: Optional[str] = field(
-        default_factory=lambda: os.getenv("GOOGLE_API_KEY")
+    # API Configuration
+
+    openrouter_api_key: Optional[str] = field(
+        default_factory=lambda: os.getenv("OPENROUTER_API_KEY"),
+        metadata={"description": "OpenRouter API key"}
     )
 
-    # MODELS
-
-    orchestrator_provider: str = field(
-        default_factory=lambda: _load_model_config().get("orchestrator_provider"),
-        metadata={"description": "Provider for orchestrator model: 'openai', 'anthropic', or 'google'"},
+    openrouter_base_url: str = field(
+        default_factory=lambda: os.getenv("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1"),
+        metadata={"description": "OpenRouter API base URL"}
     )
+
+    # Model Configuration
 
     orchestrator_model: Annotated[str, {"__template_metadata__": {"kind": "llm"}}] = field(
-        default_factory=lambda: _load_model_config().get("orchestrator_model"),
-        metadata={"description": "The model name for planning the literature review process."},
-    )
-
-    text_provider: str = field(
-        default_factory=lambda: _load_model_config().get("text_provider"),
-        metadata={"description": "Provider for text model: 'openai', 'anthropic', or 'google'"},
+        default_factory=lambda: os.getenv("ORCHESTRATOR_MODEL"),
+        metadata={"description": "The model name for planning the literature review process (OpenRouter format: provider/model)."},
     )
 
     text_model: Annotated[str, {"__template_metadata__": {"kind": "llm"}}] = field(
-        default_factory=lambda: _load_model_config().get("text_model"),
-        metadata={"description": "The model name for text processing tasks."},
+        default_factory=lambda: os.getenv("TEXT_MODEL"),
+        metadata={"description": "The model name for text processing tasks (OpenRouter format: provider/model)."},
+    )
+
+    embedding_model: str = field(
+        default_factory=lambda: os.getenv("EMBEDDING_MODEL"),
+        metadata={"description": "The model name for embeddings (OpenRouter format: provider/model)."},
     )
 
     # HELPERS

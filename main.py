@@ -1,13 +1,15 @@
 from langchain_core.runnables import RunnableConfig
 from langgraph.types import Command
 
-from agents.shared.state.main_state import AgentState, CachingOptions
+from agents.shared.state.main_state import AgentState
 from agents.planning_agent.graph import planning_graph
 from agents.refinement_agent.graph import refinement_graph
 from agents.graph import graph
+from data.database.crud import ReviewDB
 
 from dotenv import load_dotenv
 from pathlib import Path
+import os
 
 import asyncio
 import uuid
@@ -31,20 +33,32 @@ async def run_workflow_async(init_state, graph, cfg):
 
 if __name__ == "__main__":
 
-    load_dotenv(                
-        Path(__file__).resolve().parent.parent / ".env",
-        override=False,         
-    )    
+    load_dotenv(
+        Path(__file__).resolve().parent / ".env",
+        override=False,
+    )
 
     TOPIC = 'Personalisation and conditional alignment of LLMs.'
     PAPER_RECENCY = 'after 2023'
 
-    init_state = AgentState( 
-        caching_options=CachingOptions(
-            cached_plan_id='ac1f85e4-93a2526d-9f74ab7c-0bff1986',
-            cached_section_ids=None
-        ),          
-        # caching_options=None,
+    # Initialize database and create new review
+    db = ReviewDB()
+    review = db.create_review(
+        topic=TOPIC,
+        paper_recency=PAPER_RECENCY,
+        orchestrator_model=os.getenv("ORCHESTRATOR_MODEL", "openai/gpt-4o"),
+        text_model=os.getenv("TEXT_MODEL", "openai/gpt-4-turbo"),
+        embedding_model=os.getenv("EMBEDDING_MODEL", "qwen/qwen3-embedding-8b")
+    )
+
+    print(f"\n{'='*60}")
+    print(f"Starting new literature review")
+    print(f"Review ID: {review.id}")
+    print(f"Topic: {TOPIC}")
+    print(f"{'='*60}\n")
+
+    init_state = AgentState(
+        review_id=review.id,
         topic=TOPIC,
         paper_recency=PAPER_RECENCY,
         completed=False,
@@ -74,10 +88,24 @@ if __name__ == "__main__":
 
     final_state_dict = asyncio.run(run_workflow_async(init_state, graph, graph_config))
     final_state = AgentState(**final_state_dict)
-    
+
     if final_state.plan is None:
         print("No plan generated.")
         latest_msg = final_state.messages[-1]
         print(latest_msg)
+        db.update_review_status(review.id, 'failed')
     else:
         final_state.plan.print_plan()
+
+        # Update review status
+        if final_state.completed:
+            db.update_review_status(review.id, 'completed')
+            db.update_review_metrics(
+                review.id,
+                total_sections=len(final_state.literature_survey),
+                total_papers_used=len(db.get_papers_for_review(review.id))
+            )
+            print(f"\n{'='*60}")
+            print(f"✓ Review completed and saved to database")
+            print(f"Review ID: {review.id}")
+            print(f"{'='*60}\n")

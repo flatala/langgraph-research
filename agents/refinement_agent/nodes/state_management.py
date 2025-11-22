@@ -115,20 +115,32 @@ def complete_refinement(state: AgentState, *, config: Optional[RunnableConfig] =
     Complete the entire refinement process.
     """
     print("🎉 Literature survey refinement completed!")
-    
+
     # Calculate stats
     total_sections = len(state.literature_survey)
     total_subsections = sum(len(section.subsections) for section in state.literature_survey if section.subsections)
     total_revisions = sum(
-        subsection.revision_count 
-        for section in state.literature_survey 
+        subsection.revision_count
+        for section in state.literature_survey
         for subsection in (section.subsections or [])
         if subsection
     )
-    
+
     print(f"📊 Final stats:")
     print(f"   Sections: {total_sections}")
     print(f"   Subsections: {total_subsections}")
     print(f"   Total revisions: {total_revisions}")
-    
+
     return {"completed": True}
+
+
+def cleanup_temp_cache(state: AgentState, *, config: Optional[RunnableConfig] = None) -> Dict:
+    """
+    Clean up temporary paper cache after review is complete.
+    """
+    from data.temp_cache.paper_cache import PaperCache
+
+    paper_cache = PaperCache(state.review_id)
+    paper_cache.cleanup()
+
+    return {}

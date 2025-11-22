@@ -1,30 +1,14 @@
 from langchain_core.runnables import RunnableConfig
 from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
 
-from agents.shared.state.main_state import AgentState, CachingOptions
+from agents.shared.state.main_state import AgentState
 from agents.shared.state.planning_components import Plan
 from agents.shared.utils.llm_utils import get_text_llm, get_orchestrator_llm
-from agents.planning_agent.agent_config import PlanningAgentConfiguration as Configuration  
+from agents.planning_agent.agent_config import PlanningAgentConfiguration as Configuration
 from agents.planning_agent.tools import arxiv_search, human_assistance
 
 from typing import List, Optional
-from datetime import datetime
-from pathlib import Path
-
-import hashlib
 import json
-
-
-PLAN_CACHE_PATH = 'cache/plans/'
-
-
-async def decide_on_start_stage(state: AgentState, *, config: Optional[RunnableConfig] = None) -> str:
-    if state.caching_options is not None and state.caching_options.cached_plan_id is not None:
-        print("Using cached plan...\n")
-        return "load_cached_plan"
-    else:
-        print("Starting from scratch...\n")
-        return "start_from_scratch"
 
 
 def append_system_prompt(state: AgentState, *, config=None):
@@ -134,42 +118,17 @@ async def reflect_on_papers(state: AgentState, *, config: Optional[RunnableConfi
 
 async def parse_plan(state: AgentState, *, config: Optional[RunnableConfig] = None) -> dict:
     """Process the plan to extract key points and papers."""
+    from data.database.crud import ReviewDB
 
     last_message: AIMessage = state.messages[-1]
-    plan: Plan = json.loads(last_message.content.strip())
-    print("Litarture survey plan extracted from LLM response.\n")
+    # Parse JSON into Pydantic Plan model
+    plan: Plan = Plan.model_validate_json(last_message.content.strip())
+    print("Literature survey plan extracted from LLM response.\n")
 
-    # prepare cache key
-    topic = state.topic
-    now = datetime.now()
-    to_hash = f"{topic}_{now.strftime('%Y%m%d_%H%M%S')}"
-    md5_hex = hashlib.md5(to_hash.encode()).hexdigest()
-    parts = [md5_hex[i:i+8] for i in range(0, 32, 8)]
-    final_id = '-'.join(parts)
-
-    # ensure that the directory exists
-    plan_path = Path(PLAN_CACHE_PATH) / f"{final_id}.json"
-    plan_path.parent.mkdir(parents=True, exist_ok=True)
-
-    # write json
-    with open(plan_path, "w") as f:
-        json.dump(plan, f, indent=4)
-
-    print(f"Saved plan at {plan_path}\n")
+    # Save plan to database
+    db = ReviewDB()
+    db.save_plan(state.review_id, plan)
 
     return {
         "plan": plan,
     }
-
-
-async def load_cached_plan(state: AgentState, *, config: Optional[RunnableConfig] = None) -> dict:
-    caching_options: CachingOptions = state.caching_options # type: ignore
-    if caching_options and caching_options.cached_plan_id:
-        plan_id = caching_options.cached_plan_id
-        plan_path = Path(PLAN_CACHE_PATH) / f"{plan_id}.json"
-        with open(plan_path, "r") as f:
-            plan: Plan  = json.load(f)
-            print(f"Loaded cached plan with id {plan_id}.\n")
-            return { "plan": plan }
-    else:
-        raise ValueError("No cached plan ID provided in state.")
