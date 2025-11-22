@@ -5,6 +5,7 @@
 .vscode/
 .claude/
 .DS_Store/
+.DS_Store
 
 # Database and vector store
 data/research.db
