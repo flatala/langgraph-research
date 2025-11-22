@@ -1,3 +1,13 @@
 .env
 **/__pycache__/
 **/*.py[cod]
+
+# Database and vector store
+data/research.db
+data/vector_store/collections/
+
+# Temporary paper cache (cleaned up after each review)
+data/temp_cache/*/
+
+# Old cache (deprecated)
+cache/
