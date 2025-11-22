@@ -1,14 +1,13 @@
 from langchain_core.runnables import RunnableConfig
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_community.document_loaders import ArxivLoader
-from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import FAISS
-from langchain_openai import OpenAIEmbeddings
 
 from agents.refinement_agent.agent_config import RefinementAgentConfiguration as Configuration
 from agents.shared.state.main_state import AgentState
 from agents.shared.state.planning_components import PaperRef, Plan, SectionPlan, KeyPoint
-from agents.shared.utils.llm_utils import get_text_llm
+from agents.shared.utils.llm_utils import get_text_llm, get_embedding_model
 from agents.shared.state.refinement_components import (
     RefinementProgress, Section, Subsection, PaperWithSegements,
     SectionStatus, SubsectionStatus
@@ -19,9 +18,9 @@ from pathlib import Path
 from dotenv import load_dotenv
 import re
 
-load_dotenv(                
+load_dotenv(
     Path(__file__).resolve().parent.parent.parent.parent / ".env",
-    override=False,         
+    override=False,
 )    
 
 async def prepare_subsection_context(state: AgentState, *, config: Optional[RunnableConfig] = None) -> Dict:
@@ -41,7 +40,7 @@ async def prepare_subsection_context(state: AgentState, *, config: Optional[Runn
 
     papers_with_segments = []
     for paper_ref in key_point.papers:
-        paper_with_segments = _build_rag_and_retrieve_segments(paper_ref, key_point)
+        paper_with_segments = _build_rag_and_retrieve_segments(paper_ref, key_point, config=config)
         papers_with_segments.append(paper_with_segments)
     
     # Create subsection with all context
@@ -88,9 +87,10 @@ async def prepare_subsection_context(state: AgentState, *, config: Optional[Runn
     }
 
 
-def _build_rag_and_retrieve_segments(paper_ref: PaperRef, key_point: KeyPoint) -> PaperWithSegements:
+def _build_rag_and_retrieve_segments(paper_ref: PaperRef, key_point: KeyPoint, *, config: Optional[RunnableConfig] = None) -> PaperWithSegements:
     """Download paper, chunk content, and retrieve top 5 relevant segments using vector similarity."""
 
+    cfg = Configuration.from_runnable_config(config)
     print(f"Processing paper: {paper_ref.title}\n")
 
     arxiv_id = _extract_arxiv_id(paper_ref.url)
@@ -106,7 +106,7 @@ def _build_rag_and_retrieve_segments(paper_ref: PaperRef, key_point: KeyPoint) -
     )
 
     chunks = text_splitter.split_documents(docs)
-    embeddings = OpenAIEmbeddings()
+    embeddings = get_embedding_model(cfg)
     vectorstore = FAISS.from_documents(chunks, embeddings)
 
     query = key_point.text
