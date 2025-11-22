@@ -4,6 +4,7 @@ from agents.refinement_agent.nodes.state_management import (
     initialise_refinement_progress,
     decide_refinement_stage,
     complete_refinement,
+    cleanup_temp_cache,
     advance_to_next
 )
 from agents.refinement_agent.nodes.writing import prepare_subsection_context, write_subsection
@@ -22,6 +23,7 @@ workflow.add_node("process_feedback", process_feedback)
 workflow.add_node("start_revision", start_revision)
 workflow.add_node("advance_to_next", advance_to_next)
 workflow.add_node("complete_refinement", complete_refinement)
+workflow.add_node("cleanup_temp_cache", cleanup_temp_cache)
 
 ACTION_NODES = [
     "prepare_subsection_context",
@@ -59,6 +61,7 @@ workflow.add_edge(START, "initialise_refinement_progress")
 workflow.add_conditional_edges("initialise_refinement_progress", decide_refinement_stage, ROUTE_MAP)
 for node in ACTION_NODES:
     workflow.add_conditional_edges(node, decide_refinement_stage, ROUTE_MAP)
-workflow.add_edge("complete_refinement", END)
+workflow.add_edge("complete_refinement", "cleanup_temp_cache")
+workflow.add_edge("cleanup_temp_cache", END)
 
 refinement_graph = workflow.compile()

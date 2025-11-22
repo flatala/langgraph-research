@@ -2,7 +2,6 @@ from langchain_core.runnables import RunnableConfig
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_community.document_loaders import ArxivLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain_community.vectorstores import FAISS
 
 from agents.refinement_agent.agent_config import RefinementAgentConfiguration as Configuration
 from agents.shared.state.main_state import AgentState
@@ -40,7 +39,13 @@ async def prepare_subsection_context(state: AgentState, *, config: Optional[Runn
 
     papers_with_segments = []
     for paper_ref in key_point.papers:
-        paper_with_segments = _build_rag_and_retrieve_segments(paper_ref, key_point, config=config)
+        paper_with_segments = _build_rag_and_retrieve_segments(
+            paper_ref, key_point,
+            review_id=state.review_id,
+            section_index=current_section_idx,
+            subsection_index=current_subsection_idx,
+            config=config
+        )
         papers_with_segments.append(paper_with_segments)
     
     # Create subsection with all context
@@ -87,44 +92,127 @@ async def prepare_subsection_context(state: AgentState, *, config: Optional[Runn
     }
 
 
-def _build_rag_and_retrieve_segments(paper_ref: PaperRef, key_point: KeyPoint, *, config: Optional[RunnableConfig] = None) -> PaperWithSegements:
-    """Download paper, chunk content, and retrieve top 5 relevant segments using vector similarity."""
+def _build_rag_and_retrieve_segments(
+    paper_ref: PaperRef,
+    key_point: KeyPoint,
+    review_id: str,
+    section_index: int,
+    subsection_index: int,
+    *,
+    config: Optional[RunnableConfig] = None
+) -> PaperWithSegements:
+    """Download paper, chunk content, and retrieve top 5 relevant segments using vector similarity.
+
+    Uses persistent ChromaDB for caching embeddings and SQLite DB for tracking papers.
+    Also uses temporary paper cache to avoid re-downloading during a single review.
+    """
+    from data.database.crud import ReviewDB
+    from data.vector_store.manager import VectorStoreManager
+    from data.temp_cache.paper_cache import PaperCache
 
     cfg = Configuration.from_runnable_config(config)
+    db = ReviewDB()
+    vector_manager = VectorStoreManager()
+    paper_cache = PaperCache(review_id)
+
     print(f"Processing paper: {paper_ref.title}\n")
-
     arxiv_id = _extract_arxiv_id(paper_ref.url)
-    loader = ArxivLoader(query=arxiv_id, load_max_docs=1, load_full_text=True)
-    docs = loader.load()
-    doc = docs[0]
+
+    # Check temporary paper cache first (avoids re-downloading during this review)
+    doc = paper_cache.get(arxiv_id)
+    if doc:
+        print(f"  ✓ Using cached paper document")
+    else:
+        # Download paper
+        print(f"  → Downloading paper document")
+        loader = ArxivLoader(query=arxiv_id, load_max_docs=1, load_full_text=True)
+        docs = loader.load()
+        doc = docs[0]
+        # Save to temporary cache
+        paper_cache.save(arxiv_id, doc)
+
+    # Extract metadata from document
     authors = doc.metadata.get('Authors', '').split(', ') if doc.metadata.get('Authors') else ["Unknown"]
+    year_str = doc.metadata.get('Published', '').split('-')[0] if doc.metadata.get('Published') else None
+    year = int(year_str) if year_str else paper_ref.year
+    summary = doc.metadata.get('Summary', '')
 
-    text_splitter = RecursiveCharacterTextSplitter(
-        chunk_size=800,
-        chunk_overlap=200,
-        separators=["\n\n", "\n", ". ", " ", ""]
-    )
-
-    chunks = text_splitter.split_documents(docs)
+    # Check if we already have embeddings for this paper
+    vector_collection = db.get_vector_collection(review_id, arxiv_id)
     embeddings = get_embedding_model(cfg)
-    vectorstore = FAISS.from_documents(chunks, embeddings)
 
+    if vector_collection:
+        # Load existing embeddings
+        print(f"  ✓ Using cached embeddings ({vector_collection.total_chunks} chunks)")
+        vectorstore = vector_manager.load_collection(review_id, arxiv_id, embeddings)
+    else:
+        # Create new embeddings
+        print(f"  → Creating embeddings")
+
+        # Save paper to database
+        db.get_or_create_paper(
+            arxiv_id=arxiv_id,
+            title=paper_ref.title,
+            authors=authors,
+            url=paper_ref.url,
+            year=year,
+            summary=summary
+        )
+
+        # Chunk documents
+        text_splitter = RecursiveCharacterTextSplitter(
+            chunk_size=800,
+            chunk_overlap=200,
+            separators=["\n\n", "\n", ". ", " ", ""]
+        )
+        chunks = text_splitter.split_documents([doc])
+
+        # Create and persist vector store
+        vectorstore = vector_manager.create_collection(
+            review_id=review_id,
+            paper_id=arxiv_id,
+            documents=chunks,
+            embedding_function=embeddings
+        )
+
+        # Register in database
+        db.register_vector_collection(
+            review_id=review_id,
+            paper_id=arxiv_id,
+            collection_name=f"{review_id}_{arxiv_id}",
+            embedding_model=cfg.embedding_model,
+            chunk_size=800,
+            chunk_overlap=200,
+            total_chunks=len(chunks)
+        )
+
+    # Query vector store for relevant segments
     query = key_point.text
     relevant_docs = vectorstore.similarity_search_with_score(query, k=5)
     relevant_docs.sort(key=lambda x: x[1])
-    
+
     relevant_segments = []
     for i, (doc_chunk, score) in enumerate(relevant_docs, 1):
-        print(f"  {i}. [Score: {score:.3f}] \n {doc_chunk.page_content} \n")
+        print(f"  {i}. [Score: {score:.3f}] \n {doc_chunk.page_content[:100]}... \n")
         relevant_segments.append(f"[Score: {score:.3f}] {doc_chunk.page_content}")
+
+    # Link paper to this review/section/subsection
+    db.link_paper_to_review(
+        review_id=review_id,
+        paper_id=arxiv_id,
+        section_index=section_index,
+        subsection_index=subsection_index,
+        citation=f"({paper_ref.title}, {year})",
+        relevance_score=relevant_docs[0][1] if relevant_docs else 0.0
+    )
 
     return PaperWithSegements(
         title=paper_ref.title,
         authors=authors,
         arxiv_id=arxiv_id,
         arxiv_url=paper_ref.url,
-        citation=f"({paper_ref.title}, {paper_ref.year})",
-        content=doc,
+        citation=f"({paper_ref.title}, {year})",
+        content=doc,  # Full document needed for grounding review
         relevant_segments=relevant_segments
     )
 

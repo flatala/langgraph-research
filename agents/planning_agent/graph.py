@@ -4,10 +4,8 @@ from agents.shared.state.main_state import AgentState
 from agents.planning_agent.tools import arxiv_search, human_assistance
 from agents.shared.nodes.general_nodes import AsyncToolNode, route_tools, set_workflow_completed_flag
 from agents.planning_agent.nodes.reserch_plan_nodes import (
-    decide_on_start_stage, 
-    plan_literature_review, 
-    parse_plan, 
-    load_cached_plan,
+    plan_literature_review,
+    parse_plan,
     append_system_prompt,
     refine_problem_statement,
     parse_queries_add_plan_prompt,
@@ -17,7 +15,6 @@ from agents.planning_agent.nodes.reserch_plan_nodes import (
 workflow = StateGraph(AgentState)
 
 # Define all nodes
-workflow.add_node("load_cached_plan", load_cached_plan)
 workflow.add_node("append_system_prompt", append_system_prompt)
 workflow.add_node("refine_problem_statement", refine_problem_statement)
 workflow.add_node("tools_1", AsyncToolNode([human_assistance]))
@@ -27,15 +24,8 @@ workflow.add_node("tools_2", AsyncToolNode([arxiv_search]))
 workflow.add_node("reflect_on_papers", reflect_on_papers)
 workflow.add_node("parse_plan", parse_plan)
 
-# First decide on the initial starting stage
-workflow.add_conditional_edges(
-    START,
-    decide_on_start_stage,
-    {"load_cached_plan": "load_cached_plan", "start_from_scratch": "append_system_prompt"},
-)
-
-# If a cached plan is loaded, go directly to refinement
-workflow.add_edge("load_cached_plan", END)
+# Start with system prompt
+workflow.add_edge(START, "append_system_prompt")
 
 # if we do refinement, append system + user prompts
 workflow.add_edge("append_system_prompt", "refine_problem_statement")

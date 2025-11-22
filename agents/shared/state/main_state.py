@@ -8,25 +8,19 @@ from agents.shared.state.refinement_components import RefinementProgress, Sectio
 
 import json
 
-class CachingOptions(BaseModel):
-    cached_plan_id: Optional[str] = None
-    cached_section_ids: Optional[List[str]] = None
-
 class AgentState(BaseModel):
     # initial params
     topic: str
     paper_recency: str
     completed: bool
-    
-    # optional params
-    caching_options: Optional[CachingOptions] = None
-    
+    review_id: str  # Database review ID
+
     # history of messages
     messages: list = Field(default_factory=list)
 
     # arxiv search queries and survey plan
     search_queries: Optional[List[str]] = None
-    plan: Optional[Plan] = None    
+    plan: Optional[Plan] = None
 
     # survey refinement
     refinement_progress: Optional[RefinementProgress] = None
