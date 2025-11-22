@@ -2,6 +2,9 @@
 **/__pycache__/
 **/*.py[cod]
 
+.vscode/
+.claude/
+
 # Database and vector store
 data/research.db
 data/vector_store/collections/
