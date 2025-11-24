@@ -1,9 +1,9 @@
-from langchain_community.tools.tavily_search import TavilySearchResults
 from langchain_community.document_loaders import ArxivLoader
 from langchain_core.runnables import RunnableConfig
 from langchain_core.tools import InjectedToolArg
 from langchain_core.tools import tool
 from langgraph.types import interrupt
+from tavily import AsyncTavilyClient
 
 from agents.planning_agent.agent_config import PlanningAgentConfiguration as Configuration
 from agents.shared.utils.llm_utils import get_text_llm
@@ -33,6 +33,46 @@ async def arxiv_search(query: str, *, config: Annotated[RunnableConfig, Injected
                 "year":    str(m["Published"].year) if "Published" in m else "",
             }
         )
+    return results
+
+
+@tool("web_search")
+async def web_search(query: str, *, config: Annotated[RunnableConfig, InjectedToolArg]) -> List[Dict]:
+    """
+    Search the web for current information, news, and recent developments.
+    Use this for topics requiring up-to-date information beyond academic papers,
+    such as recent industry trends, current events, or practical applications.
+    Each result includes title, URL, content snippet, and relevance score.
+    """
+    print(f"Starting Tavily web search for: '{query}'...\n")
+    cfg = Configuration.from_runnable_config(config)
+
+    if not cfg.tavily_api_key:
+        raise ValueError("TAVILY_API_KEY not configured. Please set it in your .env file.")
+
+    # Initialize Tavily client
+    tavily = AsyncTavilyClient(api_key=cfg.tavily_api_key)
+
+    # Execute search
+    response = await tavily.search(
+        query=query,
+        max_results=cfg.tavily_max_results,
+        search_depth=cfg.tavily_search_depth,
+        include_answer=True,
+        include_raw_content=False
+    )
+
+    # Format results
+    results = []
+    for result in response.get("results", []):
+        results.append({
+            "title": result.get("title", ""),
+            "url": result.get("url", ""),
+            "content": result.get("content", ""),
+            "score": result.get("score", 0.0)
+        })
+
+    print(f"Found {len(results)} web results.\n")
     return results
 
 

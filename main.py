@@ -20,6 +20,10 @@ async def run_workflow_async(init_state, graph, cfg):
     while True:
         result = await graph.ainvoke(current_input, cfg)
 
+        print(f"\n[DEBUG] Graph returned. Keys in result: {list(result.keys())}")
+        print(f"[DEBUG] Plan exists: {result.get('plan') is not None}")
+        print(f"[DEBUG] Completed: {result.get('completed', False)}\n")
+
         # if workflow is interrupted and expects human input, provide it
         if "__interrupt__" in result:
             print(result["__interrupt__"][0].value["query"] + '\n')

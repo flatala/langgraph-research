@@ -1,7 +1,8 @@
 from langchain_core.messages import HumanMessage, AIMessage, ToolMessage
 from pydantic import BaseModel, Field
-from typing import Optional, List
+from typing import Optional, List, Annotated
 from textwrap import indent
+from langgraph.graph.message import add_messages
 
 from agents.shared.state.planning_components import Plan
 from agents.shared.state.refinement_components import RefinementProgress, Section
@@ -16,7 +17,7 @@ class AgentState(BaseModel):
     review_id: str  # Database review ID
 
     # history of messages
-    messages: list = Field(default_factory=list)
+    messages: Annotated[list, add_messages] = Field(default_factory=list)
 
     # arxiv search queries and survey plan
     search_queries: Optional[List[str]] = None

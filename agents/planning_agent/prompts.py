@@ -17,14 +17,21 @@ PREPARE_SEARCH_QUERIES_PROMPT = '''
 ───────────────
 Task
 ───────────────
-Prepare a list of **{query_count}** search queries to be used on ArXiv for papers on: **{topic}**.
+Prepare a list of **{query_count}** search queries to find research on: **{topic}**.
+
+You have access to:
+- **ArXiv search**: For academic papers and preprints
+- **Web search**: For recent developments, industry applications, news, and supplementary information
 
 ───────────────
-Human Input
+Research & Human Input
 ───────────────
-You have access to a tool to ask the user for clarification or refinement of the problem statement.  
-- You may use this tool up to **2 times**, but must use it **at least once**
-- Use it if uncertain about the topic or if clarification would improve query effectiveness
+You have access to tools for research and clarification:
+- **Web search**: Use this to research the topic and understand current context before asking questions
+- **Human assistance**: Ask the user for clarification or refinement of the problem statement
+  - You may use this tool up to **2 times**, but should use it **at least once**
+  - Only ask if uncertain about the topic after doing web research
+  - Ask focused, informed questions based on your research
 - Generate queries once you have sufficient information
 
 ───────────────
@@ -83,6 +90,12 @@ Citation Guidelines
 • **All relevant papers** from the search must be cited at least once  
 • **Distribute citations** evenly across sections and key points  
 • Focus on **recent and influential work**, but maintain broad coverage
+
+───────────────
+Available Tools
+───────────────
+- **ArXiv search**: For finding academic papers and preprints. Use thsi tool as the **only** source for gathering research papers. Only include papaers availble on arxiv in your plan.
+- **Web search**: For looking up additional context to help you better select relevant papaers you can use the web search, but for **paper gathering use only arxiv search**.
 
 ───────────────
 Output Format (Valid JSON Only)
