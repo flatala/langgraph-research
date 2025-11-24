@@ -45,15 +45,15 @@ The main graph orchestrates two sequential subgraphs:
 ### State Structure (`AgentState`)
 ```python
 {
-    "topic": str,                    # Research topic
-    "paper_recency": str,           # Time filter for papers
-    "caching_options": dict,        # Plan/section caching
-    "messages": list,               # Conversation history
-    "search_queries": list,         # Generated search queries
-    "plan": Plan,                   # Research plan structure
-    "refinement_progress": dict,    # Processing status
-    "literature_survey": list,      # Final sections
-    "completed": bool              # Workflow completion
+    "topic": str,                                      # Research topic
+    "paper_recency": str,                             # Time filter for papers
+    "review_id": str,                                 # Database review ID
+    "messages": Annotated[list, add_messages],        # Conversation history (with reducer)
+    "search_queries": list,                           # Generated search queries
+    "plan": Plan,                                     # Research plan structure
+    "refinement_progress": RefinementProgress,        # Processing status
+    "literature_survey": list,                        # Final sections
+    "completed": bool                                 # Workflow completion
 }
 ```
 
@@ -206,6 +206,123 @@ final_state["plan"]      # Check generated plan
 - Streamlined `agents/shared/utils/llm_utils.py` (single provider pattern)
 - Added `get_embedding_model()` utility for consistent model initialization
 - Environment-based configuration for easier deployment
+
+## Recent Bug Fixes (January 2025)
+
+### Critical Workflow Fixes
+Fixed multiple issues that prevented the workflow from completing successfully:
+
+#### 1. Message State Management with Tool Calls
+**Problem**: OpenAI API error "No tool call found for function call output with call_id"
+- Root cause: `AgentState.messages` was a plain `list` without proper reducer
+- Tool call IDs weren't tracked between AIMessage and ToolMessage
+- LangGraph couldn't maintain correspondence for tool executions
+
+**Solution**:
+- Added `add_messages` reducer: `messages: Annotated[list, add_messages]`
+- Updated all nodes to return only new messages, not manually concatenated lists
+- Nodes affected: `refine_problem_statement`, `plan_literature_review`, `append_system_prompt`, `parse_queries_add_plan_prompt`, `reflect_on_papers`
+
+#### 2. Subgraph Checkpointer Configuration
+**Problem**: Planning subgraph used separate `MemorySaver()` instance instead of coordinating with parent
+- Caused state synchronization issues between parent and child graphs
+- According to LangGraph docs: "LangGraph will automatically propagate the checkpointer to child subgraphs"
+
+**Solution**:
+- Changed `planning_graph = workflow.compile(checkpointer=memory)`
+- To `planning_graph = workflow.compile(checkpointer=True)`
+- Removed separate `MemorySaver()` instance
+- Allows internal memory while coordinating with parent graph
+
+#### 3. Refinement Workflow Premature Termination
+**Problem**: Workflow stopped after processing only one subsection
+- Only 2 papers stored instead of all papers from the plan
+- Returned with `Completed: False`
+
+**Root Cause**: `process_feedback` node routed directly to `END` in `ROUTE_MAP`
+```python
+"process_feedback": END,  # ❌ Terminated subgraph immediately
+```
+
+**Solution**: Changed routing to allow continued processing
+```python
+"process_feedback": "process_feedback",  # ✅ Routes back through decide_refinement_stage
+```
+
+**Impact**: Workflow now processes all subsections across all sections and completes successfully
+
+#### 4. Message Return Pattern
+**Problem**: Nodes manually concatenated messages causing duplicates and state issues
+```python
+return {"messages": state.messages + [ai_msg]}  # ❌ Wrong pattern
+```
+
+**Solution**: Return only new messages, let reducer handle concatenation
+```python
+return {"messages": [ai_msg]}  # ✅ Correct pattern
+```
+
+### Debugging Improvements
+- Added debug logging to track workflow execution flow
+- Planning completion message: "✓ Planning stage complete. Returning control to parent graph"
+- Refinement start message: "🎯 REFINEMENT STAGE STARTING"
+- Graph return debugging in `main.py` to show state keys and completion status
+
+## Known Issues & Planned Improvements
+
+### Incomplete Revision Logic
+**Current Issue**: The `start_revision` node only addresses grounding issues, ignoring content review feedback
+
+**Problem Details**:
+```python
+# agents/refinement_agent/nodes/feedback_processing.py:72
+refined_subsection = await _refine_grounding_issues(cfg, current_subsection)
+# ❌ Missing: _refine_content_issues() - content feedback is ignored!
+```
+
+When content review fails (poor structure, unclear writing, missing context), the revision process:
+- Only fixes grounding/citation issues
+- Returns to `READY_FOR_WRITING` without guidance on content problems
+- Hopes the LLM rewrites better without specific feedback
+
+**Planned Solution**: Comprehensive Revision Flow
+1. **Add `_refine_content_issues()` function**
+   - Process content review feedback (structure, clarity, flow)
+   - Generate targeted fixes for identified content problems
+
+2. **Execute in correct dependency order**
+   ```python
+   async def start_revision(state, config):
+       # 1. Fix content issues FIRST (foundation)
+       subsection = await _refine_content_issues(cfg, subsection)
+
+       # 2. Fix grounding issues SECOND (supporting evidence)
+       subsection = await _refine_grounding_issues(cfg, subsection)
+
+       # 3. Re-check BOTH to catch interdependencies
+       return {
+           "current_subsection_status": SubsectionStatus.READY_FOR_CONTENT_REVIEW
+       }
+   ```
+
+3. **Always re-check both reviews after revision**
+   - Content changes can break grounding (citations get removed/moved)
+   - Grounding changes can affect content flow (new citations alter structure)
+   - Status: `READY_FOR_REVISION → start_revision → READY_FOR_CONTENT_REVIEW`
+   - Full review cycle: `review_content → review_grounding → process_feedback`
+
+**Why Content-First Order**:
+- Content = structure/argument (foundation)
+- Grounding = evidence/citations (supports foundation)
+- Fixing foundation first prevents wasted work on citations that might be removed
+- If grounding fixed first → content restructured → citations become orphaned
+
+**Benefits**:
+- ✅ Addresses all feedback comprehensively
+- ✅ Correct dependency order prevents wasted LLM calls
+- ✅ Re-checking catches interdependencies between content and grounding
+- ✅ Single revision node keeps graph simple
+- ⚠️ Trade-off: 2 review LLM calls per iteration (acceptable for quality)
 
 ## Performance Notes
 
