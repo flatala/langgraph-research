@@ -19,6 +19,10 @@ def initialise_refinement_progress(state: AgentState, *, config: Optional[Runnab
     Initialize the refinement progress in the agent state.
     """
 
+    print("\n" + "="*60)
+    print("🎯 REFINEMENT STAGE STARTING")
+    print("="*60 + "\n")
+
     total_sections = len(state.plan.plan)
     subsections_per_section = {
         i: len(section.key_points) for i, 

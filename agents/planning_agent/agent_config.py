@@ -5,6 +5,7 @@ from langchain_core.runnables import RunnableConfig, ensure_config
 from dataclasses import fields
 from agents.planning_agent import prompts
 from agents.shared.main_config import MainConfiguration
+import os
 
 @dataclass(kw_only=True)
 class PlanningAgentConfiguration(MainConfiguration):
@@ -70,6 +71,29 @@ class PlanningAgentConfiguration(MainConfiguration):
         default=35,
         metadata={
             "description": "The maximum number of search results to return for each search query."
+        },
+    )
+
+    # TAVILY SEARCH CONFIGURATION
+
+    tavily_api_key: Optional[str] = field(
+        default_factory=lambda: os.getenv("TAVILY_API_KEY"),
+        metadata={
+            "description": "Tavily API key for web search functionality."
+        },
+    )
+
+    tavily_max_results: int = field(
+        default=5,
+        metadata={
+            "description": "Maximum number of search results to return from Tavily web search."
+        },
+    )
+
+    tavily_search_depth: str = field(
+        default="advanced",
+        metadata={
+            "description": "Tavily search depth: 'basic' for faster results or 'advanced' for more comprehensive search."
         },
     )
 
