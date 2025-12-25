@@ -9,6 +9,7 @@ from agents.planning_agent.tools import arxiv_search, human_assistance, web_sear
 
 from typing import List, Optional
 import json
+import re
 
 
 def append_system_prompt(state: AgentState, *, config=None):
@@ -48,6 +49,12 @@ async def refine_problem_statement(state: AgentState, *, config: Optional[Runnab
 async def parse_queries_add_plan_prompt(state: AgentState, *, config: Optional[RunnableConfig] = None) -> dict:
     last_message: AIMessage = state.messages[-1]
     content = last_message.content.strip()
+
+    # Extract JSON from markdown code block if present
+    if content.startswith("```") and content.endswith("```"):
+        match = re.search(r"```(?:json)?\s*([\s\S]*?)\s*```", content)
+        if match:
+            content = match.group(1).strip()
 
     # Debug: print what we're trying to parse
     print(f"Attempting to parse queries from content (first 200 chars): {content[:200]}")
@@ -129,8 +136,16 @@ async def parse_plan(state: AgentState, *, config: Optional[RunnableConfig] = No
     from data.database.crud import ReviewDB
 
     last_message: AIMessage = state.messages[-1]
+    content = last_message.content.strip()
+
+    # Extract JSON from markdown code block if present
+    if content.startswith("```") and content.endswith("```"):
+        match = re.search(r"```(?:json)?\s*([\s\S]*?)\s*```", content)
+        if match:
+            content = match.group(1).strip()
+
     # Parse JSON into Pydantic Plan model
-    plan: Plan = Plan.model_validate_json(last_message.content.strip())
+    plan: Plan = Plan.model_validate_json(content)
     print("Literature survey plan extracted from LLM response.\n")
 
     # Save plan to database

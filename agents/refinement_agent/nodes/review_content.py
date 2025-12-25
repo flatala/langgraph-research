@@ -13,6 +13,7 @@ from typing import Dict, Optional
 from pathlib import Path
 from dotenv import load_dotenv
 import json
+import re
 
 load_dotenv(                
     Path(__file__).resolve().parent.parent.parent.parent / ".env",
@@ -49,6 +50,13 @@ async def review_content(state: AgentState, *, config: Optional[RunnableConfig] 
     print("🤖 Generating content review with LLM...")
     ai_response = await llm.ainvoke(messages)
     review_text = ai_response.content.strip()
+
+    # Add JSON markdown fence stripping logic
+    if review_text.startswith("```") and review_text.endswith("```"):
+        match = re.search(r"```(?:json)?\s*([\s\S]*?)\s*```", review_text)
+        if match:
+            review_text = match.group(1).strip()
+            
     review_data = json.loads(review_text)
     
     # Parse overall assessment
@@ -62,10 +70,10 @@ async def review_content(state: AgentState, *, config: Optional[RunnableConfig] 
     fine_grained_results = []
     for result_data in fine_grained_data:
         result = ContentReviewFineGrainedResult(
-            severity=result_data.get("severity", ""),
-            problematic_text=result_data.get("problematic_text", ""),
+            reviewed_text=result_data.get("reviewed_text", ""),
+            error_type=result_data.get("error_type", ""),
             explanation=result_data.get("explanation", ""),
-            recommendation=result_data.get("reccomendation", "")  # Note: typo in prompt
+            correction_suggestion=result_data.get("correction_suggestion", "")
         )
         fine_grained_results.append(result)
     

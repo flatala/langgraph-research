@@ -19,35 +19,26 @@ class SectionStatus(str, Enum):
     COMPLETED = "completed"           
 
 class ContentReviewFineGrainedResult(BaseModel):
-    severity: str  # critical|major|minor
-    problematic_text: str
+    reviewed_text: str
+    error_type: str  # e.g., "clarity", "conciseness", "flow", "grammar", "vague", "style", "accuracy"
     explanation: str
-    recommendation: str
+    correction_suggestion: str
 
 class ContentReviewOverallAssessment(BaseModel):
     score: int
     meets_minimum: bool
     reasoning: str
 
-class GroundingReviewFineGrainedResult(BaseModel):
-    paper_id: str  # ArXiv ID for the paper this issue belongs to
-    severity: str  # critical|major|minor
-    issue_type: str  # misrepresentation|overstatement|factual_error|out_of_context|unsupported_claim|scope_overreach
+class GroundingCheckResult(BaseModel):
+    paper_id: Optional[str] = None
     citation: str
     supported_claim: str
-    verification_status: str  # fully_supported|partially_supported|unsupported|misrepresented|contradicted
-    accuracy_score: int  # 1-10 scale
-    problematic_text: str
-    explanation: str
-    source_evidence: str
-    recommendation: str
-    source_location: str
-    confidence_level: str
-
-class GroundingReviewOverallAssessment(BaseModel):
-    total_claims_verified: int
-    fully_supported_claims: int
-    problematic_claims: int
+    # status: "valid" or "invalid"
+    status: str
+    # Optional details if invalid
+    error_type: Optional[str] = None # misrepresentation, hallucination, etc
+    explanation: Optional[str] = None
+    correction_suggestion: Optional[str] = None
 
 class ReviewRound(BaseModel):
     # Content review results
@@ -56,18 +47,13 @@ class ReviewRound(BaseModel):
     content_review_passed: bool = False
     
     # Grounding review results  
-    grounding_review_results: Optional[List[GroundingReviewFineGrainedResult]] = None
-    grounding_overall_assessment: Optional[GroundingReviewOverallAssessment] = None
+    grounding_review_results: Optional[List[GroundingCheckResult]] = None
     grounding_review_passed: bool = False
 
 class CitationClaim(BaseModel):
     citation: str
     cited_papers: List[str]
     supported_claim: str
-    full_sentence: str
-    surrounding_context: str
-    segment_number: int
-    citation_position: str
 
 class CitationExtraction(BaseModel):
     citation_claims: List[CitationClaim]
@@ -83,10 +69,6 @@ class CitationExtraction(BaseModel):
                 citation=claim_data.get("citation", ""),
                 cited_papers=claim_data.get("cited_papers", []),
                 supported_claim=claim_data.get("supported_claim", ""),
-                full_sentence=claim_data.get("full_sentence", ""),
-                surrounding_context=claim_data.get("surrounding_context", ""),
-                segment_number=claim_data.get("segment_number", 0),
-                citation_position=claim_data.get("citation_position", "")
             )
             citation_claims.append(citation_claim)
         
