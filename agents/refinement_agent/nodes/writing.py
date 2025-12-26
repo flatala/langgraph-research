@@ -1,5 +1,5 @@
 from langchain_core.runnables import RunnableConfig
-from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_core.messages import HumanMessage, SystemMessage, AIMessage
 from langchain_community.document_loaders import ArxivLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
@@ -271,10 +271,19 @@ async def write_subsection(state: AgentState, *, config: Optional[RunnableConfig
     llm = get_text_llm(cfg=cfg)
     ai_response = await llm.ainvoke(messages)
     generated_content = ai_response.content.strip()
-    
-    # update subsection with generated content
+
+    # Store the message thread for continuous refinement
+    # AIMessage wraps the response to maintain the conversation flow
+    refinement_messages = [
+        system_msg,
+        user_msg,
+        AIMessage(content=generated_content)
+    ]
+
+    # update subsection with generated content and message thread
     updated_subsection = current_subsection.model_copy(update={
-        "content": generated_content
+        "content": generated_content,
+        "refinement_messages": refinement_messages
     })
     literature_survey = list(state.literature_survey)
     updated_section = literature_survey[current_section_idx].model_copy()

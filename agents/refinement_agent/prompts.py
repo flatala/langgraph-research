@@ -158,31 +158,65 @@ If no citations are found, return:
 
 VERIFY_CLAIM_PROMPT = """
 # Task
-Verify if a specific claim made in a literature review is truthfully supported by the content of the cited paper.
+Verify if a specific claim made in a literature review is supported by the content of the cited paper.
+Your primary goal is to detect **hallucinations** - claims that are completely fabricated or have no basis in the source material.
+
+# Tool Available
+You have access to a search tool to find additional evidence if the initial fragments are insufficient:
+
+**search_paper_fragments(paper_id, query)** - Search for relevant fragments in a paper's vector store.
+- paper_id: The arXiv ID of the paper (e.g., "2401.12345")
+- query: What you're looking for in the paper
+
+Use this tool if you need more evidence to make a confident determination.
+
+## Available Papers
+{available_papers}
+
+# Review Context
+The following is the content of the current section. The claim being verified comes from the subsection marked (CURRENT).
+{review_context}
 
 # Claim to Verify
 **Citation**: {citation}
 **Supported Claim**: {claim}
 
-# Supporting Content
+# Initial Evidence from Cited Paper(s)
+The following fragments were automatically retrieved as initial evidence:
 {supporting_content}
 
 # Verification Guidelines
-Determine if the claim is accurately supported by the provided suppoerting content.
-- **Valid**: The claim is directly supported by the text.
-- **Invalid**: The claim is contradicted, not found, or significantly misrepresented.
+Focus on detecting hallucinations. Be lenient with minor wording differences or slight generalizations.
+Some of the claims not supported by the paper directly might come form the review context, so take that into account.
+
+- **Valid**: Mark as valid if:
+  - The claim is directly supported by the text
+  - The claim is a reasonable interpretation or summary of the source
+  - The claim captures the general finding even if wording differs slightly
+  - The claim is a minor generalization that doesn't distort the core meaning
+
+- **Invalid**: Only mark as invalid if:
+  - The claim is completely fabricated (not found anywhere in the source)
+  - The claim directly contradicts what the source says
+  - The claim attributes findings to the wrong paper entirely
+
+Do NOT mark as invalid for:
+- Minor overstatements or hedging differences
+- Slight paraphrasing that preserves meaning
+- Reasonable academic generalizations
 
 # Output Format
-Return a JSON object with the following structure:
+When you are ready to make your final determination, return a JSON object with the following structure:
 {{
     "citation": "{citation}",
     "supported_claim": "{claim}",
     "status": "<valid|invalid>",
-    "error_type": "<None|misrepresentation|hallucination|overstatement>",
+    "error_type": "<None|hallucination|contradiction>",
     "explanation": "<Short explanation if invalid>",
     "correction_suggestion": "<Suggested correction if invalid>"
 }}
-**Return only the JSON object.**
+
+**IMPORTANT**: Only output the JSON when you have gathered sufficient evidence and are ready to make your final verdict. If you need more evidence, use the search tool first.
 """
 
 
@@ -206,16 +240,11 @@ Refine the provided subsection to fix a specific grounding issue that was identi
 # Refinement Guidelines
 1. **Address the Specific Issue**: Focus on fixing the identified grounding problem (e.g., misrepresentation, hallucination).
 2. **Maintain Accuracy**: Ensure all claims are properly supported by the source paper.
-3. **Preserve Structure**: Keep the overall flow and organization of the subsection.
-4. **Evidence-Based**: Only use information explicitly present in the provided paper content.
-5. **Academic Tone**: Maintain scholarly, objective language appropriate for graduate-level work.
-6. **Citation Integrity**: Ensure citations accurately reflect what the source paper actually says.
+3. **Preserve The Rest**: Keep the remaining aprt unrelated to teh specific issue unchanged.
 
 # Refinement Strategies
-- **For Misrepresentation**: Correct the claim to accurately reflect the source findings.
-- **For Overstatement**: Tone down claims to match the actual scope of the source.
-- **For Hallucination/Not Found**: Remove the claim or replace it with a supported finding from the paper.
-- **For Out of Context**: Provide proper context or remove the problematic claim.
+- **For Hallucination**: Remove the fabricated claim entirely or replace it with an actual finding from the paper.
+- **For Contradiction**: Correct the claim to accurately reflect what the source actually says.
 
 # Output Format
 Return the refined subsection content as clean markdown text with:
@@ -229,3 +258,49 @@ Return the refined subsection content as clean markdown text with:
 """
 
 
+CONTENT_FEEDBACK_PROMPT = """
+# Content Review Feedback
+
+The content review found the following issues that need to be fixed:
+
+## Issues Found
+{issues_list}
+
+## Overall Assessment
+**Score**: {score}/10
+**Reasoning**: {reasoning}
+
+# Task
+Fix all the issues listed above while preserving the overall structure and academic tone.
+Focus on addressing each specific issue mentioned.
+
+**Return only the revised subsection content. No preamble or explanations.**
+"""
+
+
+GROUNDING_FEEDBACK_PROMPT = """
+# Grounding Review Feedback
+
+The grounding review found issues with the following citations. Some claims are not properly supported by the cited papers.
+
+## Grounding Issues Found
+{issues_list}
+
+# Task
+Fix the grounding issues listed above. You have access to a tool to search for relevant fragments in the cited papers:
+
+**search_paper_fragments(paper_id, query)** - Search for relevant fragments in a paper's vector store.
+- paper_id: The arXiv ID of the paper (e.g., "2401.12345")
+- query: What you're looking for in the paper
+
+## Available Papers
+{available_papers}
+
+# Guidelines
+1. Use the search tool to find accurate evidence from the papers
+2. Replace hallucinated claims with actual findings from the papers
+3. Remove claims that cannot be verified
+4. Maintain the academic tone and flow of the subsection
+
+**After fixing all issues, return the complete revised subsection content.**
+"""

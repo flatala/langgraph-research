@@ -61,6 +61,22 @@ class RefinementAgentConfiguration(MainConfiguration):
         },
     )
 
+    content_feedback_prompt: str = field(
+        default=prompts.CONTENT_FEEDBACK_PROMPT,
+        metadata={
+            "description": "The prompt template for content review feedback. "
+            "Expects f-string arguments: issues_list (str), score (int), reasoning (str)"
+        },
+    )
+
+    grounding_feedback_prompt: str = field(
+        default=prompts.GROUNDING_FEEDBACK_PROMPT,
+        metadata={
+            "description": "The prompt template for grounding review feedback with tool availability. "
+            "Expects f-string arguments: issues_list (str), available_papers (str)"
+        },
+    )
+
     minimum_score: int = field(
         default=7,
         metadata={

@@ -1,5 +1,5 @@
 """ChromaDB vector store manager for paper embeddings."""
-from langchain_community.vectorstores import Chroma
+from langchain_chroma import Chroma
 from langchain_core.documents import Document
 from typing import List, Optional
 import os

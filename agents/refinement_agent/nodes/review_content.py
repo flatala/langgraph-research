@@ -7,8 +7,7 @@ from agents.shared.state.refinement_components import (
     RefinementProgress, SubsectionStatus, ReviewRound,
     ContentReviewFineGrainedResult, ContentReviewOverallAssessment
 )
-from agents.shared.utils.llm_utils import get_orchestrator_llm
-from agents.shared.utils.json_utils import clean_and_parse_json
+from agents.shared.utils.llm_utils import get_orchestrator_llm, invoke_llm_with_json_retry
 
 from typing import Dict, Optional
 from pathlib import Path
@@ -52,10 +51,7 @@ async def review_content(state: AgentState, *, config: Optional[RunnableConfig] 
     # get LLM and generate content quality review
     llm = get_orchestrator_llm(cfg=cfg)
     logger.info("Generating content review with LLM...")
-    ai_response = await llm.ainvoke(messages)
-    review_text = ai_response.content.strip()
-
-    review_data = clean_and_parse_json(review_text)
+    review_data = await invoke_llm_with_json_retry(llm, messages, max_retries=cfg.llm_max_retries)
     
     # Parse overall assessment
     overall_assessment_data = review_data.get("overall_assessment", {})
@@ -111,19 +107,10 @@ async def review_content(state: AgentState, *, config: Optional[RunnableConfig] 
     #     AIMessage(content=f"Content review completed: Score {score}/10, {'PASSED' if meets_minimum else 'FAILED'}")
     # ])
     
-    # Determine next status
-    if meets_minimum:
-        next_status = SubsectionStatus.READY_FOR_GROUNDING_REVIEW
-        logger.info("Content review passed, ready for grounding review")
-    else:
-        next_status = SubsectionStatus.READY_FOR_FEEDBACK
-        logger.info("Content review failed, ready for feedback processing")
-    
+    # Always go to process_content_feedback which handles both pass/fail
     return {
-        # TODO: we probably want a seprate message history for each review thread!!!
-        # "messages": messages_update,
         "literature_survey": literature_survey,
         "refinement_progress": progress.model_copy(update={
-            "current_subsection_status": next_status
+            "current_subsection_status": SubsectionStatus.READY_FOR_CONTENT_REVISION
         })
     }

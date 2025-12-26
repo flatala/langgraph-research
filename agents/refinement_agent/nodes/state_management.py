@@ -46,44 +46,42 @@ def initialise_refinement_progress(state: AgentState, *, config: Optional[Runnab
 
 def decide_refinement_stage(state: AgentState, *, config: Optional[RunnableConfig] = None) -> str:
     """
-    Route to next stage based on current refinement progress.
-    Clear 1:1 mapping between status and action.
+    Decide the next refinement stage based on current progress.
     """
     progress = state.refinement_progress
-    
+
     if not progress or progress.current_section_index >= progress.total_sections:
         return "complete_refinement"
-    
+
     status = progress.current_subsection_status
-    
+
     route_map = {
         SubsectionStatus.READY_FOR_CONTEXT_PREP: "prepare_subsection_context",
         SubsectionStatus.READY_FOR_WRITING: "write_subsection",
         SubsectionStatus.READY_FOR_CONTENT_REVIEW: "review_content",
-        SubsectionStatus.READY_FOR_GROUNDING_REVIEW: "review_grounding", 
-        SubsectionStatus.READY_FOR_FEEDBACK: "process_feedback",
-        SubsectionStatus.READY_FOR_REVISION: "start_revision",
+        SubsectionStatus.READY_FOR_CONTENT_REVISION: "process_content_feedback",
+        SubsectionStatus.READY_FOR_GROUNDING_REVIEW: "review_grounding",
+        SubsectionStatus.READY_FOR_GROUNDING_REVISION: "process_grounding_feedback",
         SubsectionStatus.COMPLETED: "advance_to_next"
     }
-    
+
     return route_map.get(status, "complete_refinement")
 
 
 def advance_to_next(state: AgentState, *, config: Optional[RunnableConfig] = None) -> Dict:
     """
     Advance to next subsection or section.
-    Status: COMPLETED → READY_FOR_CONTEXT_PREP (next subsection) or section advance
     """
     progress = state.refinement_progress
     current_section_idx = progress.current_section_index
     current_subsection_idx = progress.current_subsection_index
     
-    # Check if more subsections in current section
+    # check if more subsections are left in current section
     total_subsections = progress.subsections_per_section[current_section_idx]
     next_subsection_idx = current_subsection_idx + 1
     
     if next_subsection_idx >= total_subsections:
-        # Section complete - advance to next section
+        # section complete - advance to next section
         next_section_idx = current_section_idx + 1
         completed_sections = list(progress.completed_sections)
         completed_sections.append(current_section_idx)
@@ -100,7 +98,7 @@ def advance_to_next(state: AgentState, *, config: Optional[RunnableConfig] = Non
             })
         }
     else:
-        # Move to next subsection
+        # move to next subsection
         logger.info(f"Moving to subsection {next_subsection_idx+1} of section {current_section_idx+1}")
         
         return {
@@ -117,7 +115,7 @@ def complete_refinement(state: AgentState, *, config: Optional[RunnableConfig] =
     """
     logger.info("Literature survey refinement completed!")
 
-    # Calculate stats
+    # calculate stats
     total_sections = len(state.literature_survey)
     total_subsections = sum(len(section.subsections) for section in state.literature_survey if section.subsections)
     total_revisions = sum(

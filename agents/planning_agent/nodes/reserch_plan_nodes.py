@@ -3,7 +3,7 @@ from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
 
 from agents.shared.state.main_state import AgentState
 from agents.shared.state.planning_components import Plan
-from agents.shared.utils.llm_utils import get_text_llm, get_orchestrator_llm
+from agents.shared.utils.llm_utils import get_text_llm, get_orchestrator_llm, invoke_llm_with_json_retry
 from agents.shared.utils.json_utils import clean_and_parse_json
 from agents.planning_agent.agent_config import PlanningAgentConfiguration as Configuration
 from agents.planning_agent.tools import arxiv_search, human_assistance, web_search

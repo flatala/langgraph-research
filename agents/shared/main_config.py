@@ -39,6 +39,15 @@ class MainConfiguration:
         metadata={"description": "The model name for embeddings (OpenRouter format: provider/model)."},
     )
 
+    # Retry Configuration
+
+    llm_max_retries: int = field(
+        default=2,
+        metadata={
+            "description": "Maximum number of retries when LLM returns invalid JSON. Total attempts = max_retries + 1."
+        }
+    )
+
     # HELPERS
 
     @classmethod

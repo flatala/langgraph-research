@@ -91,7 +91,7 @@ def main():
 
     thread_id = str(uuid.uuid4())
     graph_config = RunnableConfig(
-        recursion_limit=50,           
+        recursion_limit=200,
         configurable={"thread_id": thread_id}
     )
 

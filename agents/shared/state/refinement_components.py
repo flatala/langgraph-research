@@ -2,15 +2,16 @@ from pydantic import BaseModel, Field
 from typing import List, Optional, Dict, Any
 from enum import Enum
 from langchain_core.documents import Document
+from langchain_core.messages import BaseMessage
 from textwrap import indent
 
 class SubsectionStatus(str, Enum):
-    READY_FOR_CONTEXT_PREP = "ready_for_context_prep"        
-    READY_FOR_WRITING = "ready_for_writing"                  
-    READY_FOR_CONTENT_REVIEW = "ready_for_content_review"   
-    READY_FOR_GROUNDING_REVIEW = "ready_for_grounding_review" 
-    READY_FOR_FEEDBACK = "ready_for_feedback"                
-    READY_FOR_REVISION = "ready_for_revision"              
+    READY_FOR_CONTEXT_PREP = "ready_for_context_prep"
+    READY_FOR_WRITING = "ready_for_writing"
+    READY_FOR_CONTENT_REVIEW = "ready_for_content_review"
+    READY_FOR_CONTENT_REVISION = "ready_for_content_revision"  # Content issues found
+    READY_FOR_GROUNDING_REVIEW = "ready_for_grounding_review"
+    READY_FOR_GROUNDING_REVISION = "ready_for_grounding_revision"  # Grounding issues found
     COMPLETED = "completed" 
 
 class SectionStatus(str, Enum):
@@ -98,10 +99,12 @@ class Subsection(BaseModel):
 
     revision_count: int = 0
     review_history: List[ReviewRound] = Field(default_factory=list)
-    content_review_messages: list = Field(default_factory=list)
-    grounding_review_messages: list = Field(default_factory=list)
+    refinement_messages: List[BaseMessage] = Field(default_factory=list)  # Continuous message thread
 
-    citations: List[CitationClaim] = Field(default_factory=list) 
+    citations: List[CitationClaim] = Field(default_factory=list)
+
+    class Config:
+        arbitrary_types_allowed = True 
 
 class Section(BaseModel):
     section_index: int
