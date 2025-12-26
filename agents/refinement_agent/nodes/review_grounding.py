@@ -6,16 +6,19 @@ from agents.shared.state.main_state import AgentState
 from agents.shared.state.refinement_components import (
     SubsectionStatus, Subsection, ReviewRound,
     GroundingCheckResult, CitationExtraction, CitationClaim,
-    PaperWithSegements
+    PaperWithSegements, RefinementProgress
 )
 from agents.shared.utils.llm_utils import get_orchestrator_llm
+from agents.shared.utils.json_utils import clean_and_parse_json
 
 from typing import Dict, Optional, List, Tuple
 from pathlib import Path
 from dotenv import load_dotenv
-from pprint import pprint
 import json
 import asyncio
+import logging
+
+logger = logging.getLogger(__name__)
 
 load_dotenv(                
     Path(__file__).resolve().parent.parent.parent.parent / ".env",
@@ -28,30 +31,28 @@ async def review_grounding(state: AgentState, *, config: Optional[RunnableConfig
     Status: READY_FOR_GROUNDING_REVIEW → READY_FOR_FEEDBACK
     """    
     cfg = Configuration.from_runnable_config(config)
-    progress = state.refinement_progress
-    current_section_idx = progress.current_section_index
-    current_subsection_idx = progress.current_subsection_index    
+    progress: RefinementProgress = state.refinement_progress
+    current_section_idx: int = progress.current_section_index
+    current_subsection_idx: int = progress.current_subsection_index    
     current_subsection: Subsection = state.literature_survey[current_section_idx].subsections[current_subsection_idx]
 
-    print("🔍 Reviewing grounding and citations...")
+    logger.info("Reviewing grounding and citations...")
 
     # extract citations from the subsection
-    claims_by_arxiv_id, citations = await _extract_citations(cfg, current_subsection)
+    citations: List[CitationClaim] = await _extract_citations(cfg, current_subsection)
 
-    # Prepare verification tasks
+    # prepare verification tasks
     verification_tasks = []
-    for arxiv_id, claims in claims_by_arxiv_id.items():
-        # Get paper content once
-        paper = next((p for p in current_subsection.papers if p.arxiv_id == arxiv_id), None)
-        if not paper: 
-            print(f"⚠️ Paper {arxiv_id} not found in sources, skipping verification for its claims.")
-            continue
-        
-        for claim in claims:
-            verification_tasks.append(_verify_single_claim(cfg, claim, paper))
+    for citation_claim in citations:
+        # fetch papers cited in the claim
+        papers: List[PaperWithSegements] = []
+        for paper_id in citation_claim.cited_papers:
+            paper = next((p for p in current_subsection.papers if p.arxiv_id == paper_id), None)
+            papers.append(paper)
+        verification_tasks.append(_verify_single_claim(cfg, citation_claim, papers))
 
-    # Execute all verifications in parallel
-    print(f"🤖 Verifying {len(verification_tasks)} claims in parallel...")
+    # execute all verifications in parallel
+    logger.info(f"Verifying {len(verification_tasks)} claims in parallel...")
     verification_results = await asyncio.gather(*verification_tasks)
     
     # create or update review round with grounding results
@@ -72,7 +73,7 @@ async def review_grounding(state: AgentState, *, config: Optional[RunnableConfig
     
     # add feedback and citations to subsection
     updated_subsection = current_subsection.model_copy(update={
-        "feedback_history": feedback_history,
+        "review_history": feedback_history,
         "citations": citations
     })
     
@@ -95,59 +96,63 @@ async def _extract_citations(
     current_subsection: Subsection
 ) -> Tuple[Dict[str, List[CitationClaim]], List[CitationClaim]]:
     
-    extract_citations_prompt = cfg.citation_identification_prompt.format(
-        paper_segment=current_subsection.content
-    )
+    # prepare prompt
+    extract_citations_prompt = cfg.citation_identification_prompt.format(paper_segment=current_subsection.content)
     user_msg = HumanMessage(content=extract_citations_prompt)
     
     # get LLM and extract all citations from subsection
+    logger.info("Extracting citations from the subsection...")
     llm = get_orchestrator_llm(cfg=cfg).with_config({"response_format": {"type": "json_object"}}) 
-    print("🤖 Extracting citations from the subsection...")
     ai_response = await llm.ainvoke([user_msg])
+
+    # parse response into the model
     extraction_response = ai_response.content.strip()
-    
-    citation_data = json.loads(extraction_response)
-    citation_extraction = CitationExtraction.from_json(citation_data)
-    print(f"📊 Extracted {citation_extraction.total_citations} citations from subsection")
+    citation_data = clean_and_parse_json(extraction_response)
+    citation_extraction: CitationExtraction = CitationExtraction.from_json(citation_data)
+    logger.info(f"Extracted {citation_extraction.total_citations} citations from subsection")
 
-
-    # aggregate all citation claims by paper arxiv ids (if is one of sources, gets add to list)  
+    # ensure that no papers were hallucinated
     available_arxiv_ids = {paper.arxiv_id for paper in current_subsection.papers}
-    claims_by_arxiv_id: Dict[str, List[CitationClaim]] = {}
     for claim in citation_extraction.citation_claims:
-        for cited_paper_id in claim.cited_papers:
-            if cited_paper_id in available_arxiv_ids:
-                if cited_paper_id not in claims_by_arxiv_id:
-                    claims_by_arxiv_id[cited_paper_id] = []
-                claims_by_arxiv_id[cited_paper_id].append(claim)
-            else:
-                # Warning instead of crash, as parallel execution can handle issues
-                print(f"⚠️ Hallucinated citation detected: ArXiv ID '{cited_paper_id}' not found in subsection papers. Claim: {claim.citation}")
+        cited_paper_ids = claim.cited_papers
+        for cited_id in cited_paper_ids:
+            if cited_id not in available_arxiv_ids:
+                logger.warning(f"Hallucinated citation detected: ArXiv ID '{cited_id}' not found in subsection papers. Claim: {claim.citation}")
                 
-    return claims_by_arxiv_id, citation_extraction.citation_claims
+    return citation_extraction.citation_claims
 
 
 async def _verify_single_claim(
     cfg: Configuration,
     claim: CitationClaim,
-    paper: PaperWithSegements,
+    papers: List[PaperWithSegements],
 ) -> GroundingCheckResult:
     """
     Verify a single claim against the paper content using LLM.
     """
-    llm = get_orchestrator_llm(cfg=cfg).with_config({"response_format": {"type": "json_object"}})
-    
+    # format supporting texts
+    supporting_content = "\n\n".join(
+        f"# Supporting content {i}\n"
+        f"- **Title**: {p.title}\n"
+        f"- **arXiv ID**: {p.arxiv_id}\n"
+        f"- **Content**:\n{(p.content.page_content if p.content else '').strip()}"
+        for i, p in enumerate(papers, 1)
+    )
+
+    # prepare promopt
     verify_prompt = cfg.verify_claim_prompt.format(
         citation=claim.citation,
         claim=claim.supported_claim,
-        paper_content=paper.content.page_content
+        supporting_content=supporting_content
     )
     
+    # invoke llm to verify the claim
+    llm = get_orchestrator_llm(cfg=cfg).with_config({"response_format": {"type": "json_object"}})
     response = await llm.ainvoke([HumanMessage(content=verify_prompt)])
-    result_data = json.loads(response.content.strip())
+    result_data = clean_and_parse_json(response.content.strip())
     
     return GroundingCheckResult(
-        paper_id=paper.arxiv_id,
+        paper_ids=[p.arxiv_id for p in papers],
         citation=result_data.get("citation", claim.citation),
         supported_claim=result_data.get("supported_claim", claim.supported_claim),
         status=result_data.get("status", "invalid"),
@@ -157,12 +162,11 @@ async def _verify_single_claim(
     )
 
 
-
 def _has_no_grounding_issues(grounding_reviews: List[GroundingCheckResult]) -> bool:
     """Check if grounding review passed by counting total invalid claims."""
     issues = [result for result in grounding_reviews if result.status == "invalid"]
     if issues:
-        print(f"❌ Found {len(issues)} grounding issues")
+        logger.info(f"Found {len(issues)} grounding issues")
     else:
-        print("✅ No grounding issues found")
+        logger.info("No grounding issues found")
     return len(issues) == 0

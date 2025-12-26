@@ -3,7 +3,9 @@ from langchain_community.vectorstores import Chroma
 from langchain_core.documents import Document
 from typing import List, Optional
 import os
+import logging
 
+logger = logging.getLogger(__name__)
 
 class VectorStoreManager:
     """Manage ChromaDB vector collections for paper embeddings."""
@@ -67,7 +69,7 @@ class VectorStoreManager:
             collection_name=collection_name
         )
 
-        print(f"  ✓ Created vector collection: {len(documents)} chunks")
+        logger.info(f"Created vector collection: {len(documents)} chunks")
         return vectorstore
 
     def load_collection(self, review_id: str, paper_id: str,
@@ -137,7 +139,7 @@ class VectorStoreManager:
         path = self.get_collection_path(review_id, paper_id)
         if os.path.exists(path):
             shutil.rmtree(path)
-            print(f"  ✓ Deleted vector collection at {path}")
+            logger.info(f"Deleted vector collection at {path}")
 
     def delete_review_collections(self, review_id: str):
         """Delete all vector collections for a review.
@@ -149,4 +151,4 @@ class VectorStoreManager:
         review_path = os.path.join(self.base_path, f"review_{review_id}")
         if os.path.exists(review_path):
             shutil.rmtree(review_path)
-            print(f"  ✓ Deleted all collections for review {review_id}")
+            logger.info(f"Deleted all collections for review {review_id}")

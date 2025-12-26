@@ -5,9 +5,11 @@ from typing import Optional, List
 import uuid
 from datetime import datetime
 import json
+import logging
 
 from .models import Base, Review, Plan, Section, Subsection, Paper, ReviewPaper, VectorCollection
 
+logger = logging.getLogger(__name__)
 
 class ReviewDB:
     """Database operations for literature reviews."""
@@ -41,7 +43,7 @@ class ReviewDB:
             session.add(review)
             session.commit()
             session.refresh(review)
-            print(f"✓ Created review: {review.id}")
+            logger.info(f"Created review: {review.id}")
             return review
         finally:
             session.close()
@@ -64,7 +66,7 @@ class ReviewDB:
                 if status == 'completed':
                     review.completed_at = datetime.utcnow()
                 session.commit()
-                print(f"✓ Updated review {review_id} status to: {status}")
+                logger.info(f"Updated review {review_id} status to: {status}")
         finally:
             session.close()
 
@@ -107,7 +109,7 @@ class ReviewDB:
             session.add(plan)
             session.commit()
             session.refresh(plan)
-            print(f"✓ Saved plan for review {review_id}")
+            logger.info(f"Saved plan for review {review_id}")
             return plan
         finally:
             session.close()
@@ -148,7 +150,7 @@ class ReviewDB:
             session.add(paper)
             session.commit()
             session.refresh(paper)
-            print(f"✓ Added paper to database: {title}")
+            logger.info(f"Added paper to database: {title}")
             return paper
         finally:
             session.close()
@@ -288,7 +290,7 @@ class ReviewDB:
             session.add(vc)
             session.commit()
             session.refresh(vc)
-            print(f"✓ Registered vector collection for paper {paper_id}")
+            logger.info(f"Registered vector collection for paper {paper_id}")
             return vc
         finally:
             session.close()

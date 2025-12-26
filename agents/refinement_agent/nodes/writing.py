@@ -16,6 +16,9 @@ from typing import Dict, Optional, List
 from pathlib import Path
 from dotenv import load_dotenv
 import re
+import logging
+
+logger = logging.getLogger(__name__)
 
 load_dotenv(
     Path(__file__).resolve().parent.parent.parent.parent / ".env",
@@ -32,7 +35,7 @@ async def prepare_subsection_context(state: AgentState, *, config: Optional[Runn
     plan: Plan = state.plan
     current_section_idx: int = progress.current_section_index
     current_subsection_idx: int = progress.current_subsection_index
-    print(f"\nPreparing context for Section {current_section_idx+1}, Subsection {current_subsection_idx+1}\n")
+    logger.info(f"Preparing context for Section {current_section_idx+1}, Subsection {current_subsection_idx+1}")
 
     section_plan: SectionPlan = plan.plan[current_section_idx]
     key_point: KeyPoint = section_plan.key_points[current_subsection_idx]
@@ -82,7 +85,7 @@ async def prepare_subsection_context(state: AgentState, *, config: Optional[Runn
     updated_section.subsections[current_subsection_idx] = subsection
     literature_survey[current_section_idx] = updated_section
     
-    print(f"Context prepared: {len(papers_with_segments)} paper segments")
+    logger.info(f"Context prepared: {len(papers_with_segments)} paper segments")
     return {
         "literature_survey": literature_survey,
         "refinement_progress": progress.model_copy(update={
@@ -115,16 +118,16 @@ def _build_rag_and_retrieve_segments(
     vector_manager = VectorStoreManager()
     paper_cache = PaperCache(review_id)
 
-    print(f"Processing paper: {paper_ref.title}\n")
+    logger.info(f"Processing paper: {paper_ref.title}")
     arxiv_id = _extract_arxiv_id(paper_ref.url)
 
     # Check temporary paper cache first (avoids re-downloading during this review)
     doc = paper_cache.get(arxiv_id)
     if doc:
-        print(f"  ✓ Using cached paper document")
+        logger.info(f"Using cached paper document")
     else:
         # Download paper
-        print(f"  → Downloading paper document")
+        logger.info(f"Downloading paper document")
         loader = ArxivLoader(query=arxiv_id, load_max_docs=1, load_full_text=True)
         docs = loader.load()
         doc = docs[0]
@@ -143,11 +146,11 @@ def _build_rag_and_retrieve_segments(
 
     if vector_collection:
         # Load existing embeddings
-        print(f"  ✓ Using cached embeddings ({vector_collection.total_chunks} chunks)")
+        logger.info(f"Using cached embeddings ({vector_collection.total_chunks} chunks)")
         vectorstore = vector_manager.load_collection(review_id, arxiv_id, embeddings)
     else:
         # Create new embeddings
-        print(f"  → Creating embeddings")
+        logger.info(f"Creating embeddings")
 
         # Save paper to database
         db.get_or_create_paper(
@@ -193,7 +196,7 @@ def _build_rag_and_retrieve_segments(
 
     relevant_segments = []
     for i, (doc_chunk, score) in enumerate(relevant_docs, 1):
-        print(f"  {i}. [Score: {score:.3f}] \n {doc_chunk.page_content[:100]}... \n")
+        logger.debug(f"{i}. [Score: {score:.3f}] \n {doc_chunk.page_content[:100]}...")
         relevant_segments.append(f"[Score: {score:.3f}] {doc_chunk.page_content}")
 
     # Link paper to this review/section/subsection
@@ -237,7 +240,7 @@ async def write_subsection(state: AgentState, *, config: Optional[RunnableConfig
     current_section_idx = progress.current_section_index
     current_subsection_idx = progress.current_subsection_index
     
-    print(f"✍️  Writing subsection {current_subsection_idx+1} of section {current_section_idx+1}")
+    logger.info(f"Writing subsection {current_subsection_idx+1} of section {current_section_idx+1}")
     
     current_section: Section = state.literature_survey[current_section_idx]
     current_subsection: Subsection = current_section.subsections[current_subsection_idx]
@@ -261,7 +264,7 @@ async def write_subsection(state: AgentState, *, config: Optional[RunnableConfig
     )
     
     # get LLM and generate subsection content
-    print("Generating subsection content with LLM...")
+    logger.info("Generating subsection content with LLM...")
     system_msg = SystemMessage(content=cfg.system_prompt)
     user_msg = HumanMessage(content=writing_prompt)
     messages = [system_msg, user_msg]
@@ -283,7 +286,7 @@ async def write_subsection(state: AgentState, *, config: Optional[RunnableConfig
     updated_section.subsections[current_subsection_idx] = updated_subsection
     literature_survey[current_section_idx] = updated_section
     
-    print("Content written, ready for content review")
+    logger.info("Content written, ready for content review")
     return {
         "literature_survey": literature_survey,
         "refinement_progress": progress.model_copy(update={

@@ -9,19 +9,16 @@ from agents.refinement_agent.agent_config import RefinementAgentConfiguration as
 from typing import List, Optional, Dict
 from datetime import datetime
 from pathlib import Path
-from pprint import pprint
-
-import hashlib
 import json
+import logging
+
+logger = logging.getLogger(__name__)
 
 def initialise_refinement_progress(state: AgentState, *, config: Optional[RunnableConfig] = None) -> Dict:
     """
     Initialize the refinement progress in the agent state.
     """
-
-    print("\n" + "="*60)
-    print("🎯 REFINEMENT STAGE STARTING")
-    print("="*60 + "\n")
+    logger.info("REFINEMENT STAGE STARTING")
 
     total_sections = len(state.plan.plan)
     subsections_per_section = {
@@ -41,8 +38,8 @@ def initialise_refinement_progress(state: AgentState, *, config: Optional[Runnab
         completed_subsections={},
     )
 
-    print("Refinement progress initialized.\n")
-    pprint(progress)
+    logger.info("Refinement progress initialized.")
+    logger.debug(json.dumps(progress.model_dump(), indent=2))
 
     return { "refinement_progress": progress }
     
@@ -91,7 +88,7 @@ def advance_to_next(state: AgentState, *, config: Optional[RunnableConfig] = Non
         completed_sections = list(progress.completed_sections)
         completed_sections.append(current_section_idx)
         
-        print(f"🎉 Section {current_section_idx+1} completed! Moving to section {next_section_idx+1}")
+        logger.info(f"Section {current_section_idx+1} completed! Moving to section {next_section_idx+1}")
         
         return {
             "refinement_progress": progress.model_copy(update={
@@ -104,7 +101,7 @@ def advance_to_next(state: AgentState, *, config: Optional[RunnableConfig] = Non
         }
     else:
         # Move to next subsection
-        print(f"➡️  Moving to subsection {next_subsection_idx+1} of section {current_section_idx+1}")
+        logger.info(f"Moving to subsection {next_subsection_idx+1} of section {current_section_idx+1}")
         
         return {
             "refinement_progress": progress.model_copy(update={
@@ -118,7 +115,7 @@ def complete_refinement(state: AgentState, *, config: Optional[RunnableConfig] =
     """
     Complete the entire refinement process.
     """
-    print("🎉 Literature survey refinement completed!")
+    logger.info("Literature survey refinement completed!")
 
     # Calculate stats
     total_sections = len(state.literature_survey)
@@ -130,10 +127,10 @@ def complete_refinement(state: AgentState, *, config: Optional[RunnableConfig] =
         if subsection
     )
 
-    print(f"📊 Final stats:")
-    print(f"   Sections: {total_sections}")
-    print(f"   Subsections: {total_subsections}")
-    print(f"   Total revisions: {total_revisions}")
+    logger.info(f"Final stats:")
+    logger.info(f"   Sections: {total_sections}")
+    logger.info(f"   Subsections: {total_subsections}")
+    logger.info(f"   Total revisions: {total_revisions}")
 
     return {"completed": True}
 

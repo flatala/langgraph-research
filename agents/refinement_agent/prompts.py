@@ -164,11 +164,11 @@ Verify if a specific claim made in a literature review is truthfully supported b
 **Citation**: {citation}
 **Supported Claim**: {claim}
 
-# Source Paper Content
-{paper_content}
+# Supporting Content
+{supporting_content}
 
 # Verification Guidelines
-Determine if the claim is accurately supported by the provided text.
+Determine if the claim is accurately supported by the provided suppoerting content.
 - **Valid**: The claim is directly supported by the text.
 - **Invalid**: The claim is contradicted, not found, or significantly misrepresented.
 
@@ -200,7 +200,7 @@ Refine the provided subsection to fix a specific grounding issue that was identi
 # Current Subsection Content
 {current_subsection}
 
-# Full Paper Content for Reference
+# Contents of supporting papers for reference
 {full_paper_content}
 
 # Refinement Guidelines

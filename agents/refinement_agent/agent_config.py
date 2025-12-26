@@ -48,7 +48,7 @@ class RefinementAgentConfiguration(MainConfiguration):
         default=prompts.VERIFY_CLAIM_PROMPT,
         metadata={
             "description": "The prompt template to use for verifying a single citation claim against the paper content. "
-            "Expects f-string arguments: citation (str), claim (str), paper_content (str)"
+            "Expects f-string arguments: citation (str), claim (str), supporting_content (str)"
         },
     )
 

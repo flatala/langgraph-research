@@ -8,12 +8,16 @@ from agents.shared.state.refinement_components import (
     ContentReviewFineGrainedResult, ContentReviewOverallAssessment
 )
 from agents.shared.utils.llm_utils import get_orchestrator_llm
+from agents.shared.utils.json_utils import clean_and_parse_json
 
 from typing import Dict, Optional
 from pathlib import Path
 from dotenv import load_dotenv
 import json
 import re
+import logging
+
+logger = logging.getLogger(__name__)
 
 load_dotenv(                
     Path(__file__).resolve().parent.parent.parent.parent / ".env",
@@ -30,7 +34,7 @@ async def review_content(state: AgentState, *, config: Optional[RunnableConfig] 
     current_section_idx = progress.current_section_index
     current_subsection_idx = progress.current_subsection_index
     
-    print("🔍 Reviewing content quality...")
+    logger.info("Reviewing content quality...")
     
     # prepare content review prompt
     current_subsection = state.literature_survey[current_section_idx].subsections[current_subsection_idx]
@@ -47,17 +51,11 @@ async def review_content(state: AgentState, *, config: Optional[RunnableConfig] 
     
     # get LLM and generate content quality review
     llm = get_orchestrator_llm(cfg=cfg)
-    print("🤖 Generating content review with LLM...")
+    logger.info("Generating content review with LLM...")
     ai_response = await llm.ainvoke(messages)
     review_text = ai_response.content.strip()
 
-    # Add JSON markdown fence stripping logic
-    if review_text.startswith("```") and review_text.endswith("```"):
-        match = re.search(r"```(?:json)?\s*([\s\S]*?)\s*```", review_text)
-        if match:
-            review_text = match.group(1).strip()
-            
-    review_data = json.loads(review_text)
+    review_data = clean_and_parse_json(review_text)
     
     # Parse overall assessment
     overall_assessment_data = review_data.get("overall_assessment", {})
@@ -83,10 +81,10 @@ async def review_content(state: AgentState, *, config: Optional[RunnableConfig] 
         reasoning=reasoning
     )
         
-    print(f"📊 Content review score: {score}/10, Passed: {meets_minimum}")
-    print(f"📝 Reasoning: {reasoning}")
+    logger.info(f"Content review score: {score}/10, Passed: {meets_minimum}")
+    logger.info(f"Reasoning: {reasoning}")
     if fine_grained_results:
-        print(f"🔍 Found {len(fine_grained_results)} fine-grained issues")
+        logger.info(f"Found {len(fine_grained_results)} fine-grained issues")
             
     
     # create review round with content review results
@@ -116,10 +114,10 @@ async def review_content(state: AgentState, *, config: Optional[RunnableConfig] 
     # Determine next status
     if meets_minimum:
         next_status = SubsectionStatus.READY_FOR_GROUNDING_REVIEW
-        print("✅ Content review passed, ready for grounding review")
+        logger.info("Content review passed, ready for grounding review")
     else:
         next_status = SubsectionStatus.READY_FOR_FEEDBACK
-        print("❌ Content review failed, ready for feedback processing")
+        logger.info("Content review failed, ready for feedback processing")
     
     return {
         # TODO: we probably want a seprate message history for each review thread!!!

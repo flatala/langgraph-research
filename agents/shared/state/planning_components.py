@@ -27,8 +27,7 @@ class Plan(BaseModel):
         """
         Nicely format the reasoning and the plan for quick inspection.
         """
-        print("\n\nResearch Plan & Reasoning:\n")
-        lines: List[str] = []
+        lines: List[str] = ["\n\nResearch Plan & Reasoning:\n"]
 
         # Print reasoning
         reasoning = self.reasoning.strip()
@@ -57,5 +56,4 @@ class Plan(BaseModel):
             lines.append("")  # blank line between sections
 
         formatted = "\n".join(lines)
-        print(formatted)
         return formatted

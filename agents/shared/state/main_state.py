@@ -76,6 +76,5 @@ class AgentState(BaseModel):
                 lines.append(f"{i:02d}  [{msg.__class__.__name__.upper()}]\n{indent(_fmt(str(msg.content)), '   ')}")
 
         log = "\n".join(lines)
-        print(log)
         return log
 

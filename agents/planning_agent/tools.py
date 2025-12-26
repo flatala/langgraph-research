@@ -10,6 +10,9 @@ from agents.shared.utils.llm_utils import get_text_llm
 
 from typing import List, Dict
 from typing_extensions import Annotated
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 @tool("arxiv_search")
@@ -19,7 +22,7 @@ async def arxiv_search(query: str, *, config: Annotated[RunnableConfig, Injected
     Each item has title, url, summary (one paragraph) and year.
     """
 
-    print(f"Starting ArXiv search...\n")
+    logger.info(f"Starting ArXiv search...")
     cfg = Configuration.from_runnable_config(config)
     docs = ArxivLoader(query=query, max_results=cfg.max_search_results).get_summaries_as_docs()
     results = []
@@ -44,7 +47,7 @@ async def web_search(query: str, *, config: Annotated[RunnableConfig, InjectedTo
     such as recent industry trends, current events, or practical applications.
     Each result includes title, URL, content snippet, and relevance score.
     """
-    print(f"Starting Tavily web search for: '{query}'...\n")
+    logger.info(f"Starting Tavily web search for: '{query}'...")
     cfg = Configuration.from_runnable_config(config)
 
     if not cfg.tavily_api_key:
@@ -72,7 +75,7 @@ async def web_search(query: str, *, config: Annotated[RunnableConfig, InjectedTo
             "score": result.get("score", 0.0)
         })
 
-    print(f"Found {len(results)} web results.\n")
+    logger.info(f"Found {len(results)} web results.")
     return results
 
 
@@ -80,7 +83,7 @@ async def web_search(query: str, *, config: Annotated[RunnableConfig, InjectedTo
 def human_assistance(query: str) -> str:
     """Request assistance from a human."""
     human_response = interrupt({"query": query})
-    print(f"\nHuman input received.\n")
+    logger.info(f"Human input received.")
     return human_response["data"]
 
 

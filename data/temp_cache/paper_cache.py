@@ -3,7 +3,9 @@ from pathlib import Path
 from typing import Optional
 import pickle
 from langchain_core.documents import Document
+import logging
 
+logger = logging.getLogger(__name__)
 
 class PaperCache:
     """Cache for downloaded paper documents during a review session."""
@@ -33,4 +35,4 @@ class PaperCache:
             for file in self.cache_dir.iterdir():
                 file.unlink()
             self.cache_dir.rmdir()
-            print(f"🗑️  Cleaned up temporary paper cache for review {self.review_id}")
+            logger.info(f"Cleaned up temporary paper cache for review {self.review_id}")

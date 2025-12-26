@@ -9,6 +9,9 @@ from agents.shared.utils.llm_utils import get_orchestrator_llm
 from typing import Dict, Optional, List
 from pathlib import Path
 from dotenv import load_dotenv
+import logging
+
+logger = logging.getLogger(__name__)
 
 load_dotenv(                
     Path(__file__).resolve().parent.parent.parent.parent / ".env",
@@ -24,10 +27,9 @@ def process_feedback(state: AgentState, *, config: Optional[RunnableConfig] = No
     progress = state.refinement_progress
     current_section_idx = progress.current_section_index
     current_subsection_idx = progress.current_subsection_index
-    
-    print("Processing feedback...")
-    
+
     # get current subsection feedback
+    logger.info("Processing feedback...")
     current_subsection = state.literature_survey[current_section_idx].subsections[current_subsection_idx]
     feedback_history = current_subsection.review_history
     
@@ -41,10 +43,10 @@ def process_feedback(state: AgentState, *, config: Optional[RunnableConfig] = No
         grounding_passed = False
     
     if content_passed and grounding_passed:
-        print("✅ All reviews passed - subsection approved!")
+        logger.info("All reviews passed - subsection approved!")
         next_status = SubsectionStatus.COMPLETED
     else:
-        print("❌ Reviews failed - subsection needs revision")
+        logger.info("Reviews failed - subsection needs revision")
         next_status = SubsectionStatus.READY_FOR_REVISION
     
     return {
@@ -64,14 +66,14 @@ async def start_revision(state: AgentState, *, config: Optional[RunnableConfig] 
     current_section_idx = progress.current_section_index
     current_subsection_idx = progress.current_subsection_index
     
-    # Get current subsection
+    # get current subsection
     current_section = state.literature_survey[current_section_idx]
     current_subsection = current_section.subsections[current_subsection_idx]
     
-    # First, refine grounding issues if any exist
+    # first, refine grounding issues if any exist
     refined_subsection = await _refine_grounding_issues(cfg, current_subsection)
     
-    # Update revision count
+    # update revision count
     updated_subsection = refined_subsection.model_copy(update={
         "revision_count": refined_subsection.revision_count + 1
     })
@@ -82,7 +84,7 @@ async def start_revision(state: AgentState, *, config: Optional[RunnableConfig] 
     updated_section.subsections[current_subsection_idx] = updated_subsection
     literature_survey[current_section_idx] = updated_section
     
-    print(f"🔄 Starting revision #{updated_subsection.revision_count} for subsection {current_subsection_idx+1}")
+    logger.info(f"Starting revision #{updated_subsection.revision_count} for subsection {current_subsection_idx+1}")
     
     return {
         "literature_survey": literature_survey,
@@ -100,41 +102,41 @@ async def _refine_grounding_issues(cfg: Configuration, subsection) -> object:
     if not subsection.review_history:
         return subsection
     
-    # Get latest review round
+    # get latest review round
     latest_review = subsection.review_history[-1]
     grounding_results = latest_review.grounding_review_results or []
     
-    # Filter only invalid issues
-    invalid_issues = [
-        issue for issue in grounding_results 
-        if issue.status == "invalid"
-    ]
-    
+    # filter only invalid issues
+    invalid_issues = [issue for issue in grounding_results if issue.status == "invalid"]
     if not invalid_issues:
-        print("✅ No grounding issues to refine")
+        logger.info("No grounding issues to refine")
         return subsection
     
-    print(f"🔧 Refining {len(invalid_issues)} grounding issues...")
-    
-    # Start with current subsection content
+    # process each issue one by one
+    logger.info(f"Refining {len(invalid_issues)} grounding issues...")
     current_content = subsection.content
     updated_subsection = subsection.model_copy()
-    
-    # Process each issue one by one
     for i, issue in enumerate(invalid_issues, 1):
-        print(f"   🔧 Fixing issue {i}/{len(invalid_issues)} - {issue.error_type}: {issue.citation}")
+        logger.info(f"Fixing issue {i}/{len(invalid_issues)} - {issue.error_type}: {issue.citation}")
         
-        # Get the paper content for this issue
-        if not issue.paper_id:
-             print(f"   ⚠️ Warning: No paper_id for issue in {issue.citation}, skipping.")
-             continue
+        # get the paper content for this issue
+        papers = []
+        for paper_id in issue.paper_ids:
+            paper = next((p for p in subsection.papers if p.arxiv_id == paper_id), None)
+            if not paper:
+                raise ValueError(f"Paper with ID {paper_id} not found in subsection papers")
+            papers.append(paper)
 
-        paper = next((p for p in subsection.papers if p.arxiv_id == issue.paper_id), None)
-        if not paper:
-            print(f"   ⚠️ Warning: Paper {issue.paper_id} not found, skipping issue")
-            continue
+        # format the content of papers
+        papers_content = "\n\n".join(
+            f"# Paper {i}\n"
+            f"- **Title**: {p.title}\n"
+            f"- **arXiv ID**: {p.arxiv_id}\n"
+            f"- **Content**:\n{(p.content.page_content if p.content else '').strip()}"
+            for i, p in enumerate(papers, 1)
+        )
         
-        # Create refinement prompt
+        # create refinement prompt
         refinement_prompt = cfg.grounding_refinement_prompt.format(
             citation=issue.citation,
             supported_claim=issue.supported_claim,
@@ -142,26 +144,26 @@ async def _refine_grounding_issues(cfg: Configuration, subsection) -> object:
             explanation=issue.explanation,
             correction_suggestion=issue.correction_suggestion,
             current_subsection=current_content,
-            full_paper_content=paper.content.page_content
+            full_paper_content=papers_content
         )
         
-        # Get LLM and refine content
-        llm = get_orchestrator_llm(cfg=cfg)
+        # prepare messages    
         system_msg = SystemMessage(content="You are an expert academic writing assistant specializing in literature review refinement.")
         user_msg = HumanMessage(content=refinement_prompt)
-
         messages = [system_msg, user_msg]
         
-        print(f"   🤖 Refining content with LLM...")
+        # get LLM and refine content
+        logger.info(f"Refining content with LLM...")
+        llm = get_orchestrator_llm(cfg=cfg)
         ai_response = await llm.ainvoke(messages)
         refined_content = ai_response.content.strip()
         
-        # Update current content for next iteration
+        # update current content for next iteration
         current_content = refined_content
-        print(f"   ✅ Issue {i} refined successfully")
+        logger.info(f"Issue {i} refined successfully")
     
-    # Update subsection with final refined content
+    # update subsection with final refined content
     updated_subsection.content = current_content
-    print(f"🎯 All {len(invalid_issues)} grounding issues have been refined")
+    logger.info(f"All {len(invalid_issues)} grounding issues have been refined")
     
     return updated_subsection

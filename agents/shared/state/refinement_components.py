@@ -30,7 +30,7 @@ class ContentReviewOverallAssessment(BaseModel):
     reasoning: str
 
 class GroundingCheckResult(BaseModel):
-    paper_id: Optional[str] = None
+    paper_ids: Optional[List[str]] = None
     citation: str
     supported_claim: str
     # status: "valid" or "invalid"
@@ -151,7 +151,6 @@ class Section(BaseModel):
             lines.append("")  # blank line between subsections
         
         formatted = "\n".join(lines)
-        print(formatted)
         return formatted
 
 class RefinementProgress(BaseModel):
