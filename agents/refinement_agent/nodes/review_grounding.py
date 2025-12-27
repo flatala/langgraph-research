@@ -1,6 +1,8 @@
 from langchain_core.runnables import RunnableConfig
 from langchain_core.messages import HumanMessage, AIMessage
 
+from langgraph.prebuilt import ToolNode
+
 from agents.refinement_agent.agent_config import RefinementAgentConfiguration as Configuration
 from agents.refinement_agent.tools import create_search_paper_fragments_tool
 from agents.shared.state.main_state import AgentState
@@ -41,6 +43,10 @@ async def review_grounding(state: AgentState, *, config: Optional[RunnableConfig
 
     logger.info("Reviewing grounding and citations...")
 
+    # create shared instances once for all verifications
+    vector_manager = VectorStoreManager()
+    embeddings = get_embedding_model(cfg)
+
     # extract citations from the subsection
     citations: List[CitationClaim] = await _extract_citations(cfg, current_subsection)
 
@@ -56,7 +62,8 @@ async def review_grounding(state: AgentState, *, config: Optional[RunnableConfig
             paper = next((p for p in current_subsection.papers if p.arxiv_id == paper_id), None)
             papers.append(paper)
         verification_tasks.append(_verify_single_claim(
-            cfg, citation_claim, papers, state.review_id, review_context
+            cfg, citation_claim, papers, state.review_id, review_context,
+            vector_manager=vector_manager, embeddings=embeddings
         ))
 
     # execute all verifications in parallel
@@ -146,14 +153,14 @@ async def _verify_single_claim(
     papers: List[PaperWithSegements],
     review_id: str,
     review_context: str,
+    vector_manager: VectorStoreManager,
+    embeddings,
 ) -> GroundingCheckResult:
     """
     Verify a single claim against paper content using LLM with optional tool use.
     Uses RAG to retrieve relevant fragments as seed evidence, then allows
     the LLM to search for more evidence if needed.
     """
-    vector_manager = VectorStoreManager()
-    embeddings = get_embedding_model(cfg)
 
     # create search tool with available papers
     available_paper_ids = [p.arxiv_id for p in papers if p is not None]
@@ -197,9 +204,10 @@ async def _verify_single_claim(
         available_papers=available_papers_str
     )
 
-    # set up LLM with tool binding
+    # set up LLM with tool binding and ToolNode for parallel execution
     llm = get_orchestrator_llm(cfg=cfg)
     llm_with_tools = llm.bind_tools([search_tool])
+    tool_node = ToolNode([search_tool])
 
     # initialize message thread
     messages = [HumanMessage(content=verify_prompt)]
@@ -220,11 +228,10 @@ async def _verify_single_claim(
             final_response = ai_response.content.strip()
             break
 
-        # execute tool calls
+        # execute tool calls in parallel using ToolNode
         logger.debug(f"Executing {len(ai_response.tool_calls)} tool calls for claim verification")
-        for tool_call in ai_response.tool_calls:
-            tool_result = search_tool.invoke(tool_call)
-            messages.append(tool_result)
+        tool_result = await tool_node.ainvoke({"messages": messages})
+        messages.extend(tool_result["messages"])
 
     # parse JSON response
     result_data = await _parse_verification_response(final_response, cfg)

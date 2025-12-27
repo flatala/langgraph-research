@@ -52,6 +52,8 @@ def get_embedding_model(cfg: MainConfiguration) -> OpenAIEmbeddings:
         model=cfg.embedding_model,
         api_key=cfg.openrouter_api_key,
         base_url=cfg.openrouter_base_url,
+        skip_empty=True,  # skip empty chunks to avoid "No embedding data received" errors
+        check_embedding_ctx_length=False,  # required for non-OpenAI endpoints like OpenRouter
     )
 
 

@@ -15,6 +15,7 @@ from agents.shared.state.refinement_components import (
 from typing import Dict, Optional, List
 from pathlib import Path
 from dotenv import load_dotenv
+import asyncio
 import re
 import logging
 
@@ -40,16 +41,18 @@ async def prepare_subsection_context(state: AgentState, *, config: Optional[Runn
     section_plan: SectionPlan = plan.plan[current_section_idx]
     key_point: KeyPoint = section_plan.key_points[current_subsection_idx]
 
-    papers_with_segments = []
-    for paper_ref in key_point.papers:
-        paper_with_segments = _build_rag_and_retrieve_segments(
+    # Process papers in parallel
+    tasks = [
+        _build_rag_and_retrieve_segments_async(
             paper_ref, key_point,
             review_id=state.review_id,
             section_index=current_section_idx,
             subsection_index=current_subsection_idx,
             config=config
         )
-        papers_with_segments.append(paper_with_segments)
+        for paper_ref in key_point.papers
+    ]
+    papers_with_segments = await asyncio.gather(*tasks)
     
     # Create subsection with all context
     subsection = Subsection(
@@ -93,6 +96,23 @@ async def prepare_subsection_context(state: AgentState, *, config: Optional[Runn
             "current_subsection_status": SubsectionStatus.READY_FOR_WRITING
         })
     }
+
+
+async def _build_rag_and_retrieve_segments_async(
+    paper_ref: PaperRef,
+    key_point: KeyPoint,
+    review_id: str,
+    section_index: int,
+    subsection_index: int,
+    *,
+    config: Optional[RunnableConfig] = None
+) -> PaperWithSegements:
+    """Async wrapper for parallel paper processing using thread pool."""
+    return await asyncio.to_thread(
+        _build_rag_and_retrieve_segments,
+        paper_ref, key_point, review_id, section_index, subsection_index,
+        config=config
+    )
 
 
 def _build_rag_and_retrieve_segments(

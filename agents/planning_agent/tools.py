@@ -10,6 +10,7 @@ from agents.shared.utils.llm_utils import get_text_llm
 
 from typing import List, Dict
 from typing_extensions import Annotated
+import asyncio
 import logging
 
 logger = logging.getLogger(__name__)
@@ -21,10 +22,22 @@ async def arxiv_search(query: str, *, config: Annotated[RunnableConfig, Injected
     Return recent arXiv papers that match *query*.
     Each item has title, url, summary (one paragraph) and year.
     """
-
     logger.info(f"Starting ArXiv search...")
     cfg = Configuration.from_runnable_config(config)
-    docs = ArxivLoader(query=query, max_results=cfg.max_search_results).get_summaries_as_docs()
+
+    # retry with exponential backoff on rate limits
+    max_retries = 5
+    for attempt in range(max_retries):
+        try:
+            docs = ArxivLoader(query=query, load_max_docs=cfg.max_search_results).get_summaries_as_docs()
+            break
+        except Exception as e:
+            if ("429" in str(e) or "503" in str(e)) and attempt < max_retries - 1:
+                wait = 3 * (attempt + 1)  # 3s, 6s, 9s, 12s
+                logger.warning(f"ArXiv rate limited, waiting {wait}s...")
+                await asyncio.sleep(wait)
+            else:
+                raise
     results = []
     for d in docs:
         m = d.metadata

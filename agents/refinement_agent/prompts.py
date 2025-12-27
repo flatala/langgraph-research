@@ -153,6 +153,8 @@ If no citations are found, return:
 }}
 
 **Return only the JSON object. No additional text or explanations.**
+**Ensure that any special characters in the returned text and JSON are properly escaped to maintain valid JSON formatting.**
+**This means LatEX symbols, quotation marks, backslashes, and other characters that could break JSON syntax should be handled appropriately**.
 """
 
 
@@ -168,10 +170,15 @@ You have access to a search tool to find additional evidence if the initial frag
 - paper_id: The arXiv ID of the paper (e.g., "2401.12345")
 - query: What you're looking for in the paper
 
-Use this tool if you need more evidence to make a confident determination.
+Whenever you cannot find sufficient evidence to make a confident determination, use the search tool to gather more information from the cited paper(s).
+Find the surrounding context of the segment you are uncertain about, and use in in the search tool to retrieve the most similar fragments.
 
-## Available Papers
+## Available Papers - this is the list of papers you can search in
 {available_papers}
+
+# Initial Evidence from Cited Paper(s)
+The following fragments were automatically retrieved as initial evidence:
+{supporting_content}
 
 # Review Context
 The following is the content of the current section. The claim being verified comes from the subsection marked (CURRENT).
@@ -181,29 +188,21 @@ The following is the content of the current section. The claim being verified co
 **Citation**: {citation}
 **Supported Claim**: {claim}
 
-# Initial Evidence from Cited Paper(s)
-The following fragments were automatically retrieved as initial evidence:
-{supporting_content}
-
 # Verification Guidelines
 Focus on detecting hallucinations. Be lenient with minor wording differences or slight generalizations.
 Some of the claims not supported by the paper directly might come form the review context, so take that into account.
+For instant a paper might introduce a concept or idea but the specific claim might position that idea in a contetx not explicitly discussed in the paper, 
+since the broader context of the review might provide that connection. Be sure not to mark such instances as hallucinations.
 
 - **Valid**: Mark as valid if:
   - The claim is directly supported by the text
-  - The claim is a reasonable interpretation or summary of the source
+  - The claim is a reasonable interpretation or summary of the **Available Papers**
   - The claim captures the general finding even if wording differs slightly
   - The claim is a minor generalization that doesn't distort the core meaning
 
 - **Invalid**: Only mark as invalid if:
-  - The claim is completely fabricated (not found anywhere in the source)
-  - The claim directly contradicts what the source says
-  - The claim attributes findings to the wrong paper entirely
-
-Do NOT mark as invalid for:
-- Minor overstatements or hedging differences
-- Slight paraphrasing that preserves meaning
-- Reasonable academic generalizations
+  - The claim is completely fabricated (not found anywhere in the **Available Papers** and not explainable by the **Review Context**)
+  - The claim directly contradicts what the **Available Papers** state
 
 # Output Format
 When you are ready to make your final determination, return a JSON object with the following structure:

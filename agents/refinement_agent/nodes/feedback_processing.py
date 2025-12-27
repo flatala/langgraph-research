@@ -1,6 +1,8 @@
 from langchain_core.runnables import RunnableConfig
 from langchain_core.messages import HumanMessage, AIMessage
 
+from langgraph.prebuilt import ToolNode
+
 from agents.refinement_agent.agent_config import RefinementAgentConfiguration as Configuration
 from agents.refinement_agent.tools import create_search_paper_fragments_tool
 from agents.shared.state.main_state import AgentState
@@ -167,11 +169,12 @@ async def process_grounding_feedback(state: AgentState, *, config: Optional[Runn
     available_papers = _format_available_papers(current_subsection.papers)
     feedback_prompt = cfg.grounding_feedback_prompt.format(issues_list=issues_list,available_papers=available_papers)
 
-    # prepare message thread and LLM
+    # prepare message thread and LLM with ToolNode for parallel execution
     messages = list(current_subsection.refinement_messages)
     messages.append(HumanMessage(content=feedback_prompt))
     llm = get_text_llm(cfg=cfg)
     llm_with_tools = llm.bind_tools([search_tool])
+    tool_node = ToolNode([search_tool])
 
     max_tool_iterations = 10
     iteration = 0
@@ -186,11 +189,10 @@ async def process_grounding_feedback(state: AgentState, *, config: Optional[Runn
         if not ai_response.tool_calls:
             break
 
-        # execute tool calls
+        # execute tool calls in parallel using ToolNode
         logger.info(f"Executing {len(ai_response.tool_calls)} tool calls")
-        for tool_call in ai_response.tool_calls:
-            tool_result = search_tool.invoke(tool_call)
-            messages.append(tool_result)
+        tool_result = await tool_node.ainvoke({"messages": messages})
+        messages.extend(tool_result["messages"])
 
     # update subsection
     refined_content = ai_response.content.strip()
