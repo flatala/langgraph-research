@@ -1,70 +1,88 @@
 from langchain_core.runnables import RunnableConfig
 from langgraph.types import Command
+from rich.console import Console
+from rich.panel import Panel
+from rich.progress import Progress, SpinnerColumn, TextColumn
 
 from agents.shared.state.main_state import AgentState
-from agents.planning_agent.graph import planning_graph
-from agents.refinement_agent.graph import refinement_graph
 from agents.graph import graph
 from data.database.crud import ReviewDB
+from agents.shared.utils.logging_utils import setup_logging
+from agents.shared.utils.callbacks import RichProgressCallbackHandler
 
 from dotenv import load_dotenv
 from pathlib import Path
 import os
-
 import asyncio
 import uuid
+import logging
 
+# Setup logging
+setup_logging()
+logger = logging.getLogger(__name__)
 
-async def run_workflow_async(init_state, graph, cfg):
+async def run_workflow_async(init_state, graph_instance, config, console: Console):
     current_input = init_state
-    while True:
-        result = await graph.ainvoke(current_input, cfg)
+    
+    with Progress(
+        SpinnerColumn(),
+        TextColumn("[progress.description]{task.description}"),
+        console=console,
+    ) as progress:
+        task_id = progress.add_task("Agent is running...", total=None)
+        
+        # Setup callback handler
+        callback_handler = RichProgressCallbackHandler(progress, task_id)
+        config['callbacks'] = [callback_handler]
 
-        print(f"\n[DEBUG] Graph returned. Keys in result: {list(result.keys())}")
-        print(f"[DEBUG] Plan exists: {result.get('plan') is not None}")
-        print(f"[DEBUG] Completed: {result.get('completed', False)}\n")
+        while True:
+            result = await graph_instance.ainvoke(current_input, config)
 
-        # if workflow is interrupted and expects human input, provide it
-        if "__interrupt__" in result:
-            print(result["__interrupt__"][0].value["query"] + '\n')
-            answer = await asyncio.get_event_loop().run_in_executor(None, input, "Please provide the answer: ")
-            current_input = Command(resume={"data": answer})
-            continue
+            logger.debug(f"Graph returned. Keys in result: {list(result.keys())}")
 
-        # if the workflow is completed, return the result
-        return result  
+            if "__interrupt__" in result:
+                progress.stop()
+                query = result["__interrupt__"][0].value["query"]
+                console.print(Panel(query, title="[bold yellow]Human Input Required[/bold yellow]"))
+                answer = await asyncio.get_event_loop().run_in_executor(None, console.input, "Please provide the answer: ")
+                current_input = Command(resume={"data": answer})
+                progress.start()
+                continue
 
+            return result
 
-if __name__ == "__main__":
-
+def main():
     load_dotenv(
         Path(__file__).resolve().parent / ".env",
         override=False,
     )
 
-    TOPIC = 'Personalisation and conditional alignment of LLMs.'
-    PAPER_RECENCY = 'after 2023'
+    console = Console()
+    console.print(Panel("Literature Review Agent", style="bold blue", expand=False))
+
+    topic = console.input("Enter the research topic: ")
+    paper_recency = console.input("Enter paper recency (e.g., 'after 2023', 'last 2 years'): ")
 
     # Initialize database and create new review
     db = ReviewDB()
     review = db.create_review(
-        topic=TOPIC,
-        paper_recency=PAPER_RECENCY,
+        topic=topic,
+        paper_recency=paper_recency,
         orchestrator_model=os.getenv("ORCHESTRATOR_MODEL", "openai/gpt-4o"),
         text_model=os.getenv("TEXT_MODEL", "openai/gpt-4-turbo"),
         embedding_model=os.getenv("EMBEDDING_MODEL", "qwen/qwen3-embedding-8b")
     )
-
-    print(f"\n{'='*60}")
-    print(f"Starting new literature review")
-    print(f"Review ID: {review.id}")
-    print(f"Topic: {TOPIC}")
-    print(f"{'='*60}\n")
+    
+    console.print(Panel(
+        f"Review ID: {review.id}\nTopic: {topic}",
+        title="[bold green]Starting New Literature Review[/bold green]",
+        expand=False
+    ))
 
     init_state = AgentState(
         review_id=review.id,
-        topic=TOPIC,
-        paper_recency=PAPER_RECENCY,
+        topic=topic,
+        paper_recency=paper_recency,
         completed=False,
         messages=[],
         search_queries=[],
@@ -73,35 +91,21 @@ if __name__ == "__main__":
 
     thread_id = str(uuid.uuid4())
     graph_config = RunnableConfig(
-        recursion_limit=50,           
+        recursion_limit=200,
         configurable={"thread_id": thread_id}
     )
 
-    # Generate Mermaid diagrams (viewable in VS Code with Mermaid extensions or on GitHub)
-    mermaid_syntax = graph.get_graph().draw_mermaid()
-    with open("graph_diagrams/main_graph.mmd", "w") as f:
-        f.write(mermaid_syntax)
-
-    mermaid_syntax = planning_graph.get_graph().draw_mermaid()
-    with open("graph_diagrams/planning_graph.mmd", "w") as f:
-        f.write(mermaid_syntax)
-
-    mermaid_syntax = refinement_graph.get_graph().draw_mermaid()
-    with open("graph_diagrams/refinement_graph.mmd", "w") as f:
-        f.write(mermaid_syntax)
-
-    final_state_dict = asyncio.run(run_workflow_async(init_state, graph, graph_config))
+    final_state_dict = asyncio.run(run_workflow_async(init_state, graph, graph_config, console))
     final_state = AgentState(**final_state_dict)
 
     if final_state.plan is None:
-        print("No plan generated.")
-        latest_msg = final_state.messages[-1]
-        print(latest_msg)
+        console.print(Panel("No plan was generated. The review process failed.", style="bold red"))
+        latest_msg = final_state.messages[-1] if final_state.messages else "No messages in final state."
+        logger.error(f"Review failed. Last message: {latest_msg}")
         db.update_review_status(review.id, 'failed')
     else:
-        final_state.plan.print_plan()
+        logger.info("Final plan generated:\n%s", final_state.plan.print_plan())
 
-        # Update review status
         if final_state.completed:
             db.update_review_status(review.id, 'completed')
             db.update_review_metrics(
@@ -109,7 +113,11 @@ if __name__ == "__main__":
                 total_sections=len(final_state.literature_survey),
                 total_papers_used=len(db.get_papers_for_review(review.id))
             )
-            print(f"\n{'='*60}")
-            print(f"✓ Review completed and saved to database")
-            print(f"Review ID: {review.id}")
-            print(f"{'='*60}\n")
+            console.print(Panel(
+                f"Review ID: {review.id}",
+                title="[bold green]✓ Review Completed and Saved[/bold green]",
+                expand=False
+            ))
+
+if __name__ == "__main__":
+    main()

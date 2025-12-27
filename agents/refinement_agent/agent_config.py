@@ -44,11 +44,11 @@ class RefinementAgentConfiguration(MainConfiguration):
         },
     )
 
-    review_grounding_prompt: str = field(
-        default=prompts.REVIEW_GROUNDING_PROMPT,
+    verify_claim_prompt: str = field(
+        default=prompts.VERIFY_CLAIM_PROMPT,
         metadata={
-            "description": "The prompt template to use for verifying that citation claims are truthfully supported by the full paper content. "
-            "Expects f-string arguments: citation_claims (str), full_paper_content (str)"
+            "description": "The prompt template to use for verifying a single citation claim against the paper content. "
+            "Expects f-string arguments: citation (str), claim (str), supporting_content (str)"
         },
     )
 
@@ -56,9 +56,24 @@ class RefinementAgentConfiguration(MainConfiguration):
         default=prompts.GROUNDING_REFINEMENT_PROMPT,
         metadata={
             "description": "The prompt template to use for refining subsections to fix specific grounding issues. "
-            "Expects f-string arguments: issue_type (str), severity (str), problematic_text (str), explanation (str), "
-            "source_evidence (str), recommendation (str), citation (str), supported_claim (str), verification_status (str), "
-            "current_subsection (str), full_paper_content (str)"
+            "Expects f-string arguments: citation (str), supported_claim (str), error_type (str), explanation (str), "
+            "correction_suggestion (str), current_subsection (str), full_paper_content (str)"
+        },
+    )
+
+    content_feedback_prompt: str = field(
+        default=prompts.CONTENT_FEEDBACK_PROMPT,
+        metadata={
+            "description": "The prompt template for content review feedback. "
+            "Expects f-string arguments: issues_list (str), score (int), reasoning (str)"
+        },
+    )
+
+    grounding_feedback_prompt: str = field(
+        default=prompts.GROUNDING_FEEDBACK_PROMPT,
+        metadata={
+            "description": "The prompt template for grounding review feedback with tool availability. "
+            "Expects f-string arguments: issues_list (str), available_papers (str)"
         },
     )
 

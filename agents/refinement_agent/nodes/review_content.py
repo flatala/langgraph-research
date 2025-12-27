@@ -7,12 +7,16 @@ from agents.shared.state.refinement_components import (
     RefinementProgress, SubsectionStatus, ReviewRound,
     ContentReviewFineGrainedResult, ContentReviewOverallAssessment
 )
-from agents.shared.utils.llm_utils import get_orchestrator_llm
+from agents.shared.utils.llm_utils import get_orchestrator_llm, invoke_llm_with_json_retry
 
 from typing import Dict, Optional
 from pathlib import Path
 from dotenv import load_dotenv
 import json
+import re
+import logging
+
+logger = logging.getLogger(__name__)
 
 load_dotenv(                
     Path(__file__).resolve().parent.parent.parent.parent / ".env",
@@ -29,7 +33,7 @@ async def review_content(state: AgentState, *, config: Optional[RunnableConfig] 
     current_section_idx = progress.current_section_index
     current_subsection_idx = progress.current_subsection_index
     
-    print("🔍 Reviewing content quality...")
+    logger.info("Reviewing content quality...")
     
     # prepare content review prompt
     current_subsection = state.literature_survey[current_section_idx].subsections[current_subsection_idx]
@@ -46,10 +50,8 @@ async def review_content(state: AgentState, *, config: Optional[RunnableConfig] 
     
     # get LLM and generate content quality review
     llm = get_orchestrator_llm(cfg=cfg)
-    print("🤖 Generating content review with LLM...")
-    ai_response = await llm.ainvoke(messages)
-    review_text = ai_response.content.strip()
-    review_data = json.loads(review_text)
+    logger.info("Generating content review with LLM...")
+    review_data = await invoke_llm_with_json_retry(llm, messages, max_retries=cfg.llm_max_retries)
     
     # Parse overall assessment
     overall_assessment_data = review_data.get("overall_assessment", {})
@@ -62,10 +64,10 @@ async def review_content(state: AgentState, *, config: Optional[RunnableConfig] 
     fine_grained_results = []
     for result_data in fine_grained_data:
         result = ContentReviewFineGrainedResult(
-            severity=result_data.get("severity", ""),
-            problematic_text=result_data.get("problematic_text", ""),
+            reviewed_text=result_data.get("reviewed_text", ""),
+            error_type=result_data.get("error_type", ""),
             explanation=result_data.get("explanation", ""),
-            recommendation=result_data.get("reccomendation", "")  # Note: typo in prompt
+            correction_suggestion=result_data.get("correction_suggestion", "")
         )
         fine_grained_results.append(result)
     
@@ -75,10 +77,10 @@ async def review_content(state: AgentState, *, config: Optional[RunnableConfig] 
         reasoning=reasoning
     )
         
-    print(f"📊 Content review score: {score}/10, Passed: {meets_minimum}")
-    print(f"📝 Reasoning: {reasoning}")
+    logger.info(f"Content review score: {score}/10, Passed: {meets_minimum}")
+    logger.info(f"Reasoning: {reasoning}")
     if fine_grained_results:
-        print(f"🔍 Found {len(fine_grained_results)} fine-grained issues")
+        logger.info(f"Found {len(fine_grained_results)} fine-grained issues")
             
     
     # create review round with content review results
@@ -105,19 +107,10 @@ async def review_content(state: AgentState, *, config: Optional[RunnableConfig] 
     #     AIMessage(content=f"Content review completed: Score {score}/10, {'PASSED' if meets_minimum else 'FAILED'}")
     # ])
     
-    # Determine next status
-    if meets_minimum:
-        next_status = SubsectionStatus.READY_FOR_GROUNDING_REVIEW
-        print("✅ Content review passed, ready for grounding review")
-    else:
-        next_status = SubsectionStatus.READY_FOR_FEEDBACK
-        print("❌ Content review failed, ready for feedback processing")
-    
+    # Always go to process_content_feedback which handles both pass/fail
     return {
-        # TODO: we probably want a seprate message history for each review thread!!!
-        # "messages": messages_update,
         "literature_survey": literature_survey,
         "refinement_progress": progress.model_copy(update={
-            "current_subsection_status": next_status
+            "current_subsection_status": SubsectionStatus.READY_FOR_CONTENT_REVISION
         })
     }

@@ -9,9 +9,9 @@ graph TD;
 	prepare_subsection_context(prepare_subsection_context)
 	write_subsection(write_subsection)
 	review_content(review_content)
+	process_content_feedback(process_content_feedback)
 	review_grounding(review_grounding)
-	process_feedback(process_feedback)
-	start_revision(start_revision)
+	process_grounding_feedback(process_grounding_feedback)
 	advance_to_next(advance_to_next)
 	complete_refinement(complete_refinement)
 	cleanup_temp_cache(cleanup_temp_cache)
@@ -19,69 +19,69 @@ graph TD;
 	__start__ --> initialise_refinement_progress;
 	advance_to_next -.-> complete_refinement;
 	advance_to_next -.-> prepare_subsection_context;
-	advance_to_next -.-> process_feedback;
+	advance_to_next -.-> process_content_feedback;
+	advance_to_next -.-> process_grounding_feedback;
 	advance_to_next -.-> review_content;
 	advance_to_next -.-> review_grounding;
-	advance_to_next -.-> start_revision;
 	advance_to_next -.-> write_subsection;
 	complete_refinement --> cleanup_temp_cache;
 	initialise_refinement_progress -.-> advance_to_next;
 	initialise_refinement_progress -.-> complete_refinement;
 	initialise_refinement_progress -.-> prepare_subsection_context;
-	initialise_refinement_progress -.-> process_feedback;
+	initialise_refinement_progress -.-> process_content_feedback;
+	initialise_refinement_progress -.-> process_grounding_feedback;
 	initialise_refinement_progress -.-> review_content;
 	initialise_refinement_progress -.-> review_grounding;
-	initialise_refinement_progress -.-> start_revision;
 	initialise_refinement_progress -.-> write_subsection;
 	prepare_subsection_context -.-> advance_to_next;
 	prepare_subsection_context -.-> complete_refinement;
-	prepare_subsection_context -.-> process_feedback;
+	prepare_subsection_context -.-> process_content_feedback;
+	prepare_subsection_context -.-> process_grounding_feedback;
 	prepare_subsection_context -.-> review_content;
 	prepare_subsection_context -.-> review_grounding;
-	prepare_subsection_context -.-> start_revision;
 	prepare_subsection_context -.-> write_subsection;
-	process_feedback -.-> advance_to_next;
-	process_feedback -.-> complete_refinement;
-	process_feedback -.-> prepare_subsection_context;
-	process_feedback -.-> review_content;
-	process_feedback -.-> review_grounding;
-	process_feedback -.-> start_revision;
-	process_feedback -.-> write_subsection;
+	process_content_feedback -.-> advance_to_next;
+	process_content_feedback -.-> complete_refinement;
+	process_content_feedback -.-> prepare_subsection_context;
+	process_content_feedback -.-> process_grounding_feedback;
+	process_content_feedback -.-> review_content;
+	process_content_feedback -.-> review_grounding;
+	process_content_feedback -.-> write_subsection;
+	process_grounding_feedback -.-> advance_to_next;
+	process_grounding_feedback -.-> complete_refinement;
+	process_grounding_feedback -.-> prepare_subsection_context;
+	process_grounding_feedback -.-> process_content_feedback;
+	process_grounding_feedback -.-> review_content;
+	process_grounding_feedback -.-> review_grounding;
+	process_grounding_feedback -.-> write_subsection;
 	review_content -.-> advance_to_next;
 	review_content -.-> complete_refinement;
 	review_content -.-> prepare_subsection_context;
-	review_content -.-> process_feedback;
+	review_content -.-> process_content_feedback;
+	review_content -.-> process_grounding_feedback;
 	review_content -.-> review_grounding;
-	review_content -.-> start_revision;
 	review_content -.-> write_subsection;
 	review_grounding -.-> advance_to_next;
 	review_grounding -.-> complete_refinement;
 	review_grounding -.-> prepare_subsection_context;
-	review_grounding -.-> process_feedback;
+	review_grounding -.-> process_content_feedback;
+	review_grounding -.-> process_grounding_feedback;
 	review_grounding -.-> review_content;
-	review_grounding -.-> start_revision;
 	review_grounding -.-> write_subsection;
-	start_revision -.-> advance_to_next;
-	start_revision -.-> complete_refinement;
-	start_revision -.-> prepare_subsection_context;
-	start_revision -.-> process_feedback;
-	start_revision -.-> review_content;
-	start_revision -.-> review_grounding;
-	start_revision -.-> write_subsection;
 	write_subsection -.-> advance_to_next;
 	write_subsection -.-> complete_refinement;
 	write_subsection -.-> prepare_subsection_context;
-	write_subsection -.-> process_feedback;
+	write_subsection -.-> process_content_feedback;
+	write_subsection -.-> process_grounding_feedback;
 	write_subsection -.-> review_content;
 	write_subsection -.-> review_grounding;
-	write_subsection -.-> start_revision;
 	cleanup_temp_cache --> __end__;
 	advance_to_next -.-> advance_to_next;
 	prepare_subsection_context -.-> prepare_subsection_context;
-	process_feedback -.-> process_feedback;
+	process_content_feedback -.-> process_content_feedback;
+	process_grounding_feedback -.-> process_grounding_feedback;
 	review_content -.-> review_content;
 	review_grounding -.-> review_grounding;
-	start_revision -.-> start_revision;
 	write_subsection -.-> write_subsection;
 	classDef default fill:#f2f0ff,line-height:1.2
 	classDef first fill-opacity:0

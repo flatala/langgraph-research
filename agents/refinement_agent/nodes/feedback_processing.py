@@ -1,173 +1,250 @@
 from langchain_core.runnables import RunnableConfig
-from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_core.messages import HumanMessage, AIMessage
+
+from langgraph.prebuilt import ToolNode
 
 from agents.refinement_agent.agent_config import RefinementAgentConfiguration as Configuration
+from agents.refinement_agent.tools import create_search_paper_fragments_tool
 from agents.shared.state.main_state import AgentState
-from agents.shared.state.refinement_components import RefinementProgress, SubsectionStatus, GroundingReviewFineGrainedResult
-from agents.shared.utils.llm_utils import get_orchestrator_llm
+from agents.shared.state.refinement_components import (
+    RefinementProgress, SubsectionStatus, Section, Subsection
+)
+from agents.shared.utils.llm_utils import get_text_llm, get_embedding_model
 
 from typing import Dict, Optional, List
 from pathlib import Path
 from dotenv import load_dotenv
+import logging
 
-load_dotenv(                
+logger = logging.getLogger(__name__)
+
+load_dotenv(
     Path(__file__).resolve().parent.parent.parent.parent / ".env",
-    override=False,         
+    override=False,
 )
 
 
-def process_feedback(state: AgentState, *, config: Optional[RunnableConfig] = None) -> Dict:
+async def process_content_feedback(state: AgentState, *, config: Optional[RunnableConfig] = None) -> Dict:
     """
-    Process all feedback and determine if subsection is approved or needs revision.
-    Status: READY_FOR_FEEDBACK → COMPLETED (if approved) or READY_FOR_REVISION (if not)
-    """
-    progress = state.refinement_progress
-    current_section_idx = progress.current_section_index
-    current_subsection_idx = progress.current_subsection_index
-    
-    print("Processing feedback...")
-    
-    # get current subsection feedback
-    current_subsection = state.literature_survey[current_section_idx].subsections[current_subsection_idx]
-    feedback_history = current_subsection.review_history
-    
-    # check if both content and grounding passed in the latest review round
-    if feedback_history:
-        latest_round = feedback_history[-1]
-        content_passed = latest_round.content_review_passed
-        grounding_passed = latest_round.grounding_review_passed
-    else:
-        content_passed = False
-        grounding_passed = False
-    
-    if content_passed and grounding_passed:
-        print("✅ All reviews passed - subsection approved!")
-        next_status = SubsectionStatus.COMPLETED
-    else:
-        print("❌ Reviews failed - subsection needs revision")
-        next_status = SubsectionStatus.READY_FOR_REVISION
-    
-    return {
-        "refinement_progress": progress.model_copy(update={
-            "current_subsection_status": next_status
-        })
-    }
+    Process content review feedback and refine the subsection if needed.
+    Uses the continuous message thread for context.
 
-
-async def start_revision(state: AgentState, *, config: Optional[RunnableConfig] = None) -> Dict:
-    """
-    Start revision process: First refine grounding issues, then increment revision count and go back to writing.
-    Status: READY_FOR_REVISION → READY_FOR_WRITING
+    Status transitions:
+    - If content review passed → READY_FOR_GROUNDING_REVIEW
+    - If content issues found → refine and go back to READY_FOR_CONTENT_REVIEW
     """
     cfg = Configuration.from_runnable_config(config)
-    progress = state.refinement_progress
+    progress: RefinementProgress = state.refinement_progress
     current_section_idx = progress.current_section_index
     current_subsection_idx = progress.current_subsection_index
+
+    # get latest review round
+    current_section: Section = state.literature_survey[current_section_idx]
+    current_subsection: Subsection = current_section.subsections[current_subsection_idx]
+    if not current_subsection.review_history:
+        logger.warning("No review history found, passing to grounding review")
+        return {
+            "refinement_progress": progress.model_copy(update={
+                "current_subsection_status": SubsectionStatus.READY_FOR_GROUNDING_REVIEW
+            })
+        }
+
+    # check if content review passed
+    latest_review = current_subsection.review_history[-1]
+    if latest_review.content_review_passed:
+        logger.info("Content review passed, proceeding to grounding review")
+        return {
+            "refinement_progress": progress.model_copy(update={
+                "current_subsection_status": SubsectionStatus.READY_FOR_GROUNDING_REVIEW
+            })
+        }
+
+    # content review failed - need to fix issues
+    logger.info("Content review failed, fixing issues...")
     
-    # Get current subsection
-    current_section = state.literature_survey[current_section_idx]
-    current_subsection = current_section.subsections[current_subsection_idx]
-    
-    # First, refine grounding issues if any exist
-    refined_subsection = await _refine_grounding_issues(cfg, current_subsection)
-    
-    # Update revision count
-    updated_subsection = refined_subsection.model_copy(update={
-        "revision_count": refined_subsection.revision_count + 1
+    # prepare prompt
+    issues_list = _format_content_issues(latest_review.content_review_results)
+    overall = latest_review.content_overall_assessment
+    feedback_prompt = cfg.content_feedback_prompt.format(
+        issues_list=issues_list,
+        score=overall.score if overall else "N/A",
+        reasoning=overall.reasoning if overall else "No reasoning provided"
+    )
+
+    # get the message thread and add feedback
+    messages = list(current_subsection.refinement_messages)
+    messages.append(HumanMessage(content=feedback_prompt))
+
+    # invoke LLM to refine content
+    logger.info("Refining content with LLM...")
+    llm = get_text_llm(cfg=cfg)
+    ai_response = await llm.ainvoke(messages)
+    refined_content = ai_response.content.strip()
+    messages.append(AIMessage(content=refined_content))
+
+    # update subsection
+    updated_subsection = current_subsection.model_copy(update={
+        "content": refined_content,
+        "refinement_messages": messages,
+        "revision_count": current_subsection.revision_count + 1
     })
-    
+
     # update literature survey
     literature_survey = list(state.literature_survey)
     updated_section = literature_survey[current_section_idx].model_copy()
     updated_section.subsections[current_subsection_idx] = updated_subsection
     literature_survey[current_section_idx] = updated_section
-    
-    print(f"🔄 Starting revision #{updated_subsection.revision_count} for subsection {current_subsection_idx+1}")
-    
+
+    logger.info("Content refined, going back to content review")
     return {
         "literature_survey": literature_survey,
         "refinement_progress": progress.model_copy(update={
-            "current_subsection_status": SubsectionStatus.READY_FOR_WRITING
+            "current_subsection_status": SubsectionStatus.READY_FOR_CONTENT_REVIEW
         })
     }
 
 
-async def _refine_grounding_issues(cfg: Configuration, subsection) -> object:
-    """
-    Refine grounding issues one by one, sorted by severity.
-    Returns the subsection with refined content.
-    """
-    if not subsection.review_history:
-        return subsection
-    
-    # Get latest review round
-    latest_review = subsection.review_history[-1]
-    grounding_issues = latest_review.grounding_review_results or []
-    
-    # Filter out non-issues (empty severity or issue_type)
-    real_issues = [
-        issue for issue in grounding_issues 
-        if issue.severity and issue.issue_type and issue.severity.strip() != "" and issue.issue_type.strip() != ""
-        and issue.verification_status in ["partially_supported", "unsupported", "misrepresented", "contradicted"]
-    ]
-    
-    if not real_issues:
-        print("✅ No grounding issues to refine")
-        return subsection
-    
-    # Sort by severity (critical → major → minor)
-    severity_order = {"critical": 0, "major": 1, "minor": 2}
-    real_issues.sort(key=lambda x: severity_order.get(x.severity.lower(), 3))
-    
-    print(f"🔧 Refining {len(real_issues)} grounding issues by severity...")
-    
-    # Start with current subsection content
-    current_content = subsection.content
-    updated_subsection = subsection.model_copy()
-    
-    # Process each issue one by one
-    for i, issue in enumerate(real_issues, 1):
-        print(f"   🔧 Fixing issue {i}/{len(real_issues)} - {issue.severity} {issue.issue_type}")
-        
-        # Get the paper content for this issue
-        paper = next((p for p in subsection.papers if p.arxiv_id == issue.paper_id), None)
-        if not paper:
-            print(f"   ⚠️ Warning: Paper {issue.paper_id} not found, skipping issue")
-            continue
-        
-        # Create refinement prompt
-        refinement_prompt = cfg.grounding_refinement_prompt.format(
-            issue_type=issue.issue_type,
-            severity=issue.severity,
-            problematic_text=issue.problematic_text,
-            explanation=issue.explanation,
-            source_evidence=issue.source_evidence,
-            recommendation=issue.recommendation,
-            citation=issue.citation,
-            supported_claim=issue.supported_claim,
-            verification_status=issue.verification_status,
-            current_subsection=current_content,
-            full_paper_content=paper.content.page_content
-        )
-        
-        # Get LLM and refine content
-        llm = get_orchestrator_llm(cfg=cfg)
-        system_msg = SystemMessage(content="You are an expert academic writing assistant specializing in literature review refinement.")
-        user_msg = HumanMessage(content=refinement_prompt)
+def _format_content_issues(content_issues) -> str:
+    """Format content review issues into a readable list."""
+    if not content_issues:
+        return "No specific issues identified."
 
-        # TODO: keep track of all refinment steps in one message thread
-        messages = [system_msg, user_msg]
-        
-        print(f"   🤖 Refining content with LLM...")
-        ai_response = await llm.ainvoke(messages)
-        refined_content = ai_response.content.strip()
-        
-        # Update current content for next iteration
-        current_content = refined_content
-        print(f"   ✅ Issue {i} refined successfully")
-    
-    # Update subsection with final refined content
-    updated_subsection.content = current_content
-    print(f"🎯 All {len(real_issues)} grounding issues have been refined")
-    
-    return updated_subsection
+    lines = []
+    for i, issue in enumerate(content_issues, 1):
+        lines.append(f"{i}. **{issue.error_type}**: {issue.explanation}")
+        lines.append(f"   - Problematic text: \"{issue.reviewed_text}\"")
+        lines.append(f"   - Suggestion: {issue.correction_suggestion}")
+        lines.append("")
+
+    return "\n".join(lines)
+
+
+async def process_grounding_feedback(state: AgentState, *, config: Optional[RunnableConfig] = None) -> Dict:
+    """
+    Process grounding review feedback with RAG tool access.
+    Runs an agentic loop where the LLM can search papers to find correct evidence.
+
+    Status transitions:
+    - If grounding review passed → COMPLETED
+    - If grounding issues found → refine with tool access and go back to READY_FOR_GROUNDING_REVIEW
+    """
+    cfg = Configuration.from_runnable_config(config)
+    progress: RefinementProgress = state.refinement_progress
+    current_section_idx = progress.current_section_index
+    current_subsection_idx = progress.current_subsection_index
+
+    current_section: Section = state.literature_survey[current_section_idx]
+    current_subsection: Subsection = current_section.subsections[current_subsection_idx]
+
+    # Get latest review round
+    if not current_subsection.review_history:
+        logger.warning("No review history found, marking as completed")
+        return {
+            "refinement_progress": progress.model_copy(update={
+                "current_subsection_status": SubsectionStatus.COMPLETED
+            })
+        }
+
+    latest_review = current_subsection.review_history[-1]
+
+    # Check if grounding review passed
+    if latest_review.grounding_review_passed:
+        logger.info("Grounding review passed, subsection completed!")
+        return {
+            "refinement_progress": progress.model_copy(update={
+                "current_subsection_status": SubsectionStatus.COMPLETED
+            })
+        }
+
+    # grounding review failed
+    logger.info("Grounding review failed...")
+
+    # instantiate the tool manually with correct papers
+    available_paper_ids = [p.arxiv_id for p in current_subsection.papers]
+    embeddings = get_embedding_model(cfg)
+    search_tool = create_search_paper_fragments_tool(review_id=state.review_id, available_paper_ids=available_paper_ids, embeddings=embeddings)
+
+    # prepare prompt
+    issues_list = _format_grounding_issues(latest_review.grounding_review_results)
+    available_papers = _format_available_papers(current_subsection.papers)
+    feedback_prompt = cfg.grounding_feedback_prompt.format(issues_list=issues_list,available_papers=available_papers)
+
+    # prepare message thread and LLM with ToolNode for parallel execution
+    messages = list(current_subsection.refinement_messages)
+    messages.append(HumanMessage(content=feedback_prompt))
+    llm = get_text_llm(cfg=cfg)
+    llm_with_tools = llm.bind_tools([search_tool])
+    tool_node = ToolNode([search_tool])
+
+    max_tool_iterations = 10
+    iteration = 0
+    while iteration < max_tool_iterations:
+        iteration += 1
+        logger.info(f"Grounding refinement iteration {iteration}")
+
+        ai_response = await llm_with_tools.ainvoke(messages)
+        messages.append(ai_response)
+
+        # check for tool calls
+        if not ai_response.tool_calls:
+            break
+
+        # execute tool calls in parallel using ToolNode
+        logger.info(f"Executing {len(ai_response.tool_calls)} tool calls")
+        tool_result = await tool_node.ainvoke({"messages": messages})
+        messages.extend(tool_result["messages"])
+
+    # update subsection
+    refined_content = ai_response.content.strip()
+    updated_subsection = current_subsection.model_copy(update={
+        "content": refined_content,
+        "refinement_messages": messages,
+        "revision_count": current_subsection.revision_count + 1
+    })
+
+    # Update literature survey
+    literature_survey = list(state.literature_survey)
+    updated_section = literature_survey[current_section_idx].model_copy()
+    updated_section.subsections[current_subsection_idx] = updated_subsection
+    literature_survey[current_section_idx] = updated_section
+
+    logger.info("Grounding refined, going back to grounding review")
+    return {
+        "literature_survey": literature_survey,
+        "refinement_progress": progress.model_copy(update={
+            "current_subsection_status": SubsectionStatus.READY_FOR_GROUNDING_REVIEW
+        })
+    }
+
+
+def _format_grounding_issues(grounding_results) -> str:
+    """Format grounding review issues into a readable list."""
+    if not grounding_results:
+        return "No grounding issues identified."
+
+    invalid_issues = [r for r in grounding_results if r.status == "invalid"]
+    if not invalid_issues:
+        return "No invalid grounding issues found."
+
+    lines = []
+    for i, issue in enumerate(invalid_issues, 1):
+        lines.append(f"{i}. **{issue.error_type}** for citation {issue.citation}")
+        lines.append(f"   - Claim: \"{issue.supported_claim}\"")
+        lines.append(f"   - Problem: {issue.explanation}")
+        lines.append(f"   - Suggestion: {issue.correction_suggestion}")
+        lines.append(f"   - Paper IDs: {', '.join(issue.paper_ids) if issue.paper_ids else 'N/A'}")
+        lines.append("")
+
+    return "\n".join(lines)
+
+
+def _format_available_papers(papers) -> str:
+    """Format available papers for the prompt."""
+    if not papers:
+        return "No papers available."
+
+    lines = []
+    for paper in papers:
+        lines.append(f"- **{paper.arxiv_id}**: {paper.title}")
+
+    return "\n".join(lines)

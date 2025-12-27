@@ -9,19 +9,16 @@ from agents.refinement_agent.agent_config import RefinementAgentConfiguration as
 from typing import List, Optional, Dict
 from datetime import datetime
 from pathlib import Path
-from pprint import pprint
-
-import hashlib
 import json
+import logging
+
+logger = logging.getLogger(__name__)
 
 def initialise_refinement_progress(state: AgentState, *, config: Optional[RunnableConfig] = None) -> Dict:
     """
     Initialize the refinement progress in the agent state.
     """
-
-    print("\n" + "="*60)
-    print("🎯 REFINEMENT STAGE STARTING")
-    print("="*60 + "\n")
+    logger.info("REFINEMENT STAGE STARTING")
 
     total_sections = len(state.plan.plan)
     subsections_per_section = {
@@ -41,57 +38,55 @@ def initialise_refinement_progress(state: AgentState, *, config: Optional[Runnab
         completed_subsections={},
     )
 
-    print("Refinement progress initialized.\n")
-    pprint(progress)
+    logger.info("Refinement progress initialized.")
+    logger.debug(json.dumps(progress.model_dump(), indent=2))
 
     return { "refinement_progress": progress }
     
 
 def decide_refinement_stage(state: AgentState, *, config: Optional[RunnableConfig] = None) -> str:
     """
-    Route to next stage based on current refinement progress.
-    Clear 1:1 mapping between status and action.
+    Decide the next refinement stage based on current progress.
     """
     progress = state.refinement_progress
-    
+
     if not progress or progress.current_section_index >= progress.total_sections:
         return "complete_refinement"
-    
+
     status = progress.current_subsection_status
-    
+
     route_map = {
         SubsectionStatus.READY_FOR_CONTEXT_PREP: "prepare_subsection_context",
         SubsectionStatus.READY_FOR_WRITING: "write_subsection",
         SubsectionStatus.READY_FOR_CONTENT_REVIEW: "review_content",
-        SubsectionStatus.READY_FOR_GROUNDING_REVIEW: "review_grounding", 
-        SubsectionStatus.READY_FOR_FEEDBACK: "process_feedback",
-        SubsectionStatus.READY_FOR_REVISION: "start_revision",
+        SubsectionStatus.READY_FOR_CONTENT_REVISION: "process_content_feedback",
+        SubsectionStatus.READY_FOR_GROUNDING_REVIEW: "review_grounding",
+        SubsectionStatus.READY_FOR_GROUNDING_REVISION: "process_grounding_feedback",
         SubsectionStatus.COMPLETED: "advance_to_next"
     }
-    
+
     return route_map.get(status, "complete_refinement")
 
 
 def advance_to_next(state: AgentState, *, config: Optional[RunnableConfig] = None) -> Dict:
     """
     Advance to next subsection or section.
-    Status: COMPLETED → READY_FOR_CONTEXT_PREP (next subsection) or section advance
     """
     progress = state.refinement_progress
     current_section_idx = progress.current_section_index
     current_subsection_idx = progress.current_subsection_index
     
-    # Check if more subsections in current section
+    # check if more subsections are left in current section
     total_subsections = progress.subsections_per_section[current_section_idx]
     next_subsection_idx = current_subsection_idx + 1
     
     if next_subsection_idx >= total_subsections:
-        # Section complete - advance to next section
+        # section complete - advance to next section
         next_section_idx = current_section_idx + 1
         completed_sections = list(progress.completed_sections)
         completed_sections.append(current_section_idx)
         
-        print(f"🎉 Section {current_section_idx+1} completed! Moving to section {next_section_idx+1}")
+        logger.info(f"Section {current_section_idx+1} completed! Moving to section {next_section_idx+1}")
         
         return {
             "refinement_progress": progress.model_copy(update={
@@ -103,8 +98,8 @@ def advance_to_next(state: AgentState, *, config: Optional[RunnableConfig] = Non
             })
         }
     else:
-        # Move to next subsection
-        print(f"➡️  Moving to subsection {next_subsection_idx+1} of section {current_section_idx+1}")
+        # move to next subsection
+        logger.info(f"Moving to subsection {next_subsection_idx+1} of section {current_section_idx+1}")
         
         return {
             "refinement_progress": progress.model_copy(update={
@@ -118,9 +113,9 @@ def complete_refinement(state: AgentState, *, config: Optional[RunnableConfig] =
     """
     Complete the entire refinement process.
     """
-    print("🎉 Literature survey refinement completed!")
+    logger.info("Literature survey refinement completed!")
 
-    # Calculate stats
+    # calculate stats
     total_sections = len(state.literature_survey)
     total_subsections = sum(len(section.subsections) for section in state.literature_survey if section.subsections)
     total_revisions = sum(
@@ -130,10 +125,10 @@ def complete_refinement(state: AgentState, *, config: Optional[RunnableConfig] =
         if subsection
     )
 
-    print(f"📊 Final stats:")
-    print(f"   Sections: {total_sections}")
-    print(f"   Subsections: {total_subsections}")
-    print(f"   Total revisions: {total_revisions}")
+    logger.info(f"Final stats:")
+    logger.info(f"   Sections: {total_sections}")
+    logger.info(f"   Subsections: {total_subsections}")
+    logger.info(f"   Total revisions: {total_revisions}")
 
     return {"completed": True}
 

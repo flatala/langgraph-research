@@ -6,10 +6,13 @@ from langgraph.types import interrupt
 from tavily import AsyncTavilyClient
 
 from agents.planning_agent.agent_config import PlanningAgentConfiguration as Configuration
-from agents.shared.utils.llm_utils import get_text_llm
 
 from typing import List, Dict
 from typing_extensions import Annotated
+import asyncio
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 @tool("arxiv_search")
@@ -18,10 +21,22 @@ async def arxiv_search(query: str, *, config: Annotated[RunnableConfig, Injected
     Return recent arXiv papers that match *query*.
     Each item has title, url, summary (one paragraph) and year.
     """
-
-    print(f"Starting ArXiv search...\n")
+    logger.info(f"Starting ArXiv search...")
     cfg = Configuration.from_runnable_config(config)
-    docs = ArxivLoader(query=query, max_results=cfg.max_search_results).get_summaries_as_docs()
+
+    # retry with exponential backoff on rate limits
+    max_retries = 5
+    for attempt in range(max_retries):
+        try:
+            docs = ArxivLoader(query=query, load_max_docs=cfg.max_search_results).get_summaries_as_docs()
+            break
+        except Exception as e:
+            if ("429" in str(e) or "503" in str(e)) and attempt < max_retries - 1:
+                wait = 3 * (attempt + 1)  # 3s, 6s, 9s, 12s
+                logger.warning(f"ArXiv rate limited, waiting {wait}s...")
+                await asyncio.sleep(wait)
+            else:
+                raise
     results = []
     for d in docs:
         m = d.metadata
@@ -44,7 +59,7 @@ async def web_search(query: str, *, config: Annotated[RunnableConfig, InjectedTo
     such as recent industry trends, current events, or practical applications.
     Each result includes title, URL, content snippet, and relevance score.
     """
-    print(f"Starting Tavily web search for: '{query}'...\n")
+    logger.info(f"Starting Tavily web search for: '{query}'...")
     cfg = Configuration.from_runnable_config(config)
 
     if not cfg.tavily_api_key:
@@ -72,7 +87,7 @@ async def web_search(query: str, *, config: Annotated[RunnableConfig, InjectedTo
             "score": result.get("score", 0.0)
         })
 
-    print(f"Found {len(results)} web results.\n")
+    logger.info(f"Found {len(results)} web results.")
     return results
 
 
@@ -80,15 +95,5 @@ async def web_search(query: str, *, config: Annotated[RunnableConfig, InjectedTo
 def human_assistance(query: str) -> str:
     """Request assistance from a human."""
     human_response = interrupt({"query": query})
-    print(f"\nHuman input received.\n")
+    logger.info(f"Human input received.")
     return human_response["data"]
-
-
-@tool("summarise_text")
-async def summarise_text(text: str, *, config: Annotated[RunnableConfig, InjectedToolArg]) -> str:
-    """
-    Return a 1-sentence summary of *text*.
-    """
-    llm = get_text_llm(Configuration.from_runnable_config(config))
-    prompt = f"Summarise in one sentence:\n\n{text}"
-    return (await llm.ainvoke(prompt)).content.strip()
