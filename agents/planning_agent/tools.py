@@ -6,7 +6,6 @@ from langgraph.types import interrupt
 from tavily import AsyncTavilyClient
 
 from agents.planning_agent.agent_config import PlanningAgentConfiguration as Configuration
-from agents.shared.utils.llm_utils import get_text_llm
 
 from typing import List, Dict
 from typing_extensions import Annotated
@@ -98,13 +97,3 @@ def human_assistance(query: str) -> str:
     human_response = interrupt({"query": query})
     logger.info(f"Human input received.")
     return human_response["data"]
-
-
-@tool("summarise_text")
-async def summarise_text(text: str, *, config: Annotated[RunnableConfig, InjectedToolArg]) -> str:
-    """
-    Return a 1-sentence summary of *text*.
-    """
-    llm = get_text_llm(Configuration.from_runnable_config(config))
-    prompt = f"Summarise in one sentence:\n\n{text}"
-    return (await llm.ainvoke(prompt)).content.strip()

@@ -2,7 +2,6 @@ from langgraph.graph import StateGraph, START, END
 from langgraph.prebuilt import ToolNode, tools_condition
 from agents.shared.state.main_state import AgentState
 from agents.planning_agent.tools import arxiv_search, human_assistance, web_search
-from agents.shared.nodes.general_nodes import set_workflow_completed_flag
 from agents.planning_agent.nodes.reserch_plan_nodes import (
     plan_literature_review,
     parse_plan,
