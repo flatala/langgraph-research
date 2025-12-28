@@ -341,11 +341,11 @@ async def write_subsection(state: AgentState, *, config: Optional[RunnableConfig
     updated_section.subsections[current_subsection_idx] = updated_subsection
     literature_survey[current_section_idx] = updated_section
 
-    logger.info("Content written, ready for content review")
+    logger.info("Content written, ready for grounding review")
     return {
         "literature_survey": literature_survey,
         "refinement_progress": progress.model_copy(update={
-            "current_subsection_status": SubsectionStatus.READY_FOR_CONTENT_REVIEW
+            "current_subsection_status": SubsectionStatus.READY_FOR_GROUNDING_REVIEW
         })
     }
 

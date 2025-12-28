@@ -103,7 +103,7 @@ Return your response as a JSON object of the following format:
     "fine_grained_results": [
         {{
             "reviewed_text": "<specific problematic part of the text>",
-            "error_type": "<clarity|conciseness|flow|grammar|vague|style|accuracy>",
+            "error_type": "<clarity|conciseness|flow|grammar|vague|style>",
             "explanation": "<detailed explanation of the issue>",
             "correction_suggestion": "<precise suggestion for improvement>",
         }},
@@ -286,6 +286,17 @@ The content review found the following issues that need to be fixed:
 # Task
 Fix all the issues listed above while preserving the overall structure and academic tone.
 Focus on addressing each specific issue mentioned.
+
+**CRITICAL - CITATION PRESERVATION**:
+The content has already been verified for factual accuracy. You must NOT change any factual content, claims, or citations.
+Your task is ONLY to improve:
+- Flow and transitions between sentences/paragraphs
+- Clarity and readability
+- Grammar and style
+- Conciseness (remove wordiness without changing meaning)
+
+Keep ALL citations EXACTLY as they appear - do not add, remove, or modify any [Author_YEAR(ArxivID)] references.
+If an issue suggests changing factual content, ignore that specific suggestion and focus only on stylistic improvements.
 
 **Return only the revised subsection content. No preamble or explanations.**
 """

@@ -44,14 +44,14 @@ def initialise_refinement_progress(state: AgentState, *, config: Optional[Runnab
     return { "refinement_progress": progress }
     
 
-def content_review_passed(state: AgentState) -> str:
-    """Route after content feedback: passed to grounding or retry content review."""
-    status = state.refinement_progress.current_subsection_status
-    return "passed" if status == SubsectionStatus.READY_FOR_GROUNDING_REVIEW else "retry"
-
-
 def grounding_review_passed(state: AgentState) -> str:
-    """Route after grounding feedback: passed to advance or retry grounding review."""
+    """Route after grounding feedback: passed to content review or retry grounding review."""
+    status = state.refinement_progress.current_subsection_status
+    return "passed" if status == SubsectionStatus.READY_FOR_CONTENT_REVIEW else "retry"
+
+
+def content_review_passed(state: AgentState) -> str:
+    """Route after content feedback: passed to advance or retry content review."""
     status = state.refinement_progress.current_subsection_status
     return "passed" if status == SubsectionStatus.COMPLETED else "retry"
 

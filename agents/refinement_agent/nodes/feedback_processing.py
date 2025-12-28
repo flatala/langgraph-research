@@ -50,10 +50,10 @@ async def process_content_feedback(state: AgentState, *, config: Optional[Runnab
     # check if content review passed
     latest_review = current_subsection.review_history[-1]
     if latest_review.content_review_passed:
-        logger.info("Content review passed, proceeding to grounding review")
+        logger.info("Content review passed, subsection completed!")
         return {
             "refinement_progress": progress.model_copy(update={
-                "current_subsection_status": SubsectionStatus.READY_FOR_GROUNDING_REVIEW
+                "current_subsection_status": SubsectionStatus.COMPLETED
             })
         }
 
@@ -147,10 +147,10 @@ async def process_grounding_feedback(state: AgentState, *, config: Optional[Runn
 
     # Check if grounding review passed
     if latest_review.grounding_review_passed:
-        logger.info("Grounding review passed, subsection completed!")
+        logger.info("Grounding review passed, proceeding to content review")
         return {
             "refinement_progress": progress.model_copy(update={
-                "current_subsection_status": SubsectionStatus.COMPLETED
+                "current_subsection_status": SubsectionStatus.READY_FOR_CONTENT_REVIEW
             })
         }
 

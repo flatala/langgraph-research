@@ -32,24 +32,24 @@ workflow.add_node("cleanup_temp_cache", cleanup_temp_cache)
 workflow.add_edge(START, "initialise_refinement_progress")
 workflow.add_edge("initialise_refinement_progress", "prepare_subsection_context")
 workflow.add_edge("prepare_subsection_context", "write_subsection")
-workflow.add_edge("write_subsection", "review_content")
-workflow.add_edge("review_content", "process_content_feedback")
+workflow.add_edge("write_subsection", "review_grounding")
 workflow.add_edge("review_grounding", "process_grounding_feedback")
+workflow.add_edge("review_content", "process_content_feedback")
 workflow.add_edge("complete_refinement", "cleanup_temp_cache")
 workflow.add_edge("cleanup_temp_cache", END)
 
 # conditional edges (2 destinations each)
+# grounding first, then content review
+workflow.add_conditional_edges(
+    "process_grounding_feedback",
+    grounding_review_passed,
+    {"passed": "review_content", "retry": "review_grounding"}
+)
 
 workflow.add_conditional_edges(
     "process_content_feedback",
     content_review_passed,
-    {"passed": "review_grounding", "retry": "review_content"}
-)
-
-workflow.add_conditional_edges(
-    "process_grounding_feedback",
-    grounding_review_passed,
-    {"passed": "advance_to_next", "retry": "review_grounding"}
+    {"passed": "advance_to_next", "retry": "review_content"}
 )
 
 workflow.add_conditional_edges(
