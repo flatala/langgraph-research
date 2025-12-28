@@ -2,11 +2,13 @@ from langchain_core.runnables import RunnableConfig
 from langchain_core.messages import HumanMessage, SystemMessage, AIMessage
 from langchain_community.document_loaders import ArxivLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
+from langgraph.prebuilt import ToolNode
 from typing import Dict, Optional, List
 from pathlib import Path
 from dotenv import load_dotenv
 
 from agents.refinement_agent.agent_config import RefinementAgentConfiguration as Configuration
+from agents.refinement_agent.tools import create_search_paper_fragments_tool
 from agents.shared.state.main_state import AgentState
 from agents.shared.state.planning_components import PaperRef, Plan, SectionPlan, KeyPoint
 from agents.shared.utils.llm_utils import get_text_llm, get_embedding_model
@@ -247,8 +249,8 @@ def _extract_arxiv_id(url: str) -> str:
 
 
 async def write_subsection(state: AgentState, *, config: Optional[RunnableConfig] = None) -> Dict:
-    """Generate subsection content using LLM with paper segments and completed sections as context.
-    
+    """Generate subsection content using LLM with paper segments, tool access, and completed sections as context.
+
     Status update: READY_FOR_WRITING → READY_FOR_CONTENT_REVIEW
     """
     cfg = Configuration.from_runnable_config(config)
@@ -256,17 +258,27 @@ async def write_subsection(state: AgentState, *, config: Optional[RunnableConfig
     plan = state.plan
     current_section_idx = progress.current_section_index
     current_subsection_idx = progress.current_subsection_index
-    
+
     logger.info(f"Writing subsection {current_subsection_idx+1} of section {current_section_idx+1}")
-    
+
     current_section: Section = state.literature_survey[current_section_idx]
     current_subsection: Subsection = current_section.subsections[current_subsection_idx]
     section_plan: SectionPlan = plan.plan[current_section_idx]
-    
+
     # prepare context
     papers_context = _prepare_paper_segments_string(current_subsection.papers)
     sections_context = _prepare_completed_content_string(state.literature_survey)
-    
+    available_papers = _format_available_papers(current_subsection.papers)
+
+    # create search tool for the available papers
+    available_paper_ids = [p.arxiv_id for p in current_subsection.papers]
+    embeddings = get_embedding_model(cfg)
+    search_tool = create_search_paper_fragments_tool(
+        review_id=state.review_id,
+        available_paper_ids=available_paper_ids,
+        embeddings=embeddings
+    )
+
     # compile the writing prompt
     writing_prompt = cfg.write_subsection_prompt.format(
         preceeding_sections=sections_context,
@@ -275,25 +287,44 @@ async def write_subsection(state: AgentState, *, config: Optional[RunnableConfig
         section_outline=section_plan.outline,
         subsection_index=current_subsection_idx + 1,
         total_subsections=len(section_plan.key_points),
-        paper_segments=papers_context.strip()
+        paper_segments=papers_context.strip(),
+        available_papers=available_papers
     )
-    
-    # get LLM and generate subsection content
-    logger.info("Generating subsection content with LLM...")
+
+    # set up LLM with tool binding and ToolNode for parallel execution
+    logger.info("Generating subsection content with LLM (with tool access)...")
     system_msg = SystemMessage(content=cfg.system_prompt)
     user_msg = HumanMessage(content=writing_prompt)
     messages = [system_msg, user_msg]
+
     llm = get_text_llm(cfg=cfg)
-    ai_response = await llm.ainvoke(messages)
+    llm_with_tools = llm.bind_tools([search_tool])
+    tool_node = ToolNode([search_tool])
+
+    # allow LLM to search for more evidence if needed
+    max_tool_iterations = 5
+    iteration = 0
+    ai_response = None
+    while iteration < max_tool_iterations:
+        iteration += 1
+        logger.debug(f"Writing iteration {iteration}")
+
+        ai_response = await llm_with_tools.ainvoke(messages)
+        messages.append(ai_response)
+
+        # check for tool calls
+        if not ai_response.tool_calls:
+            break
+
+        # execute tool calls in parallel using ToolNode
+        logger.info(f"Executing {len(ai_response.tool_calls)} tool calls for evidence gathering")
+        tool_result = await tool_node.ainvoke({"messages": messages})
+        messages.extend(tool_result["messages"])
+
     generated_content = ai_response.content.strip()
 
-    # Store the message thread for continuous refinement
-    # AIMessage wraps the response to maintain the conversation flow
-    refinement_messages = [
-        system_msg,
-        user_msg,
-        AIMessage(content=generated_content)
-    ]
+    # store the message thread for continuous refinement
+    refinement_messages = messages
 
     # update subsection with generated content and message thread
     updated_subsection = current_subsection.model_copy(update={
@@ -309,14 +340,26 @@ async def write_subsection(state: AgentState, *, config: Optional[RunnableConfig
 
     updated_section.subsections[current_subsection_idx] = updated_subsection
     literature_survey[current_section_idx] = updated_section
-    
-    logger.info("Content written, ready for content review")
+
+    logger.info("Content written, ready for grounding review")
     return {
         "literature_survey": literature_survey,
         "refinement_progress": progress.model_copy(update={
-            "current_subsection_status": SubsectionStatus.READY_FOR_CONTENT_REVIEW
+            "current_subsection_status": SubsectionStatus.READY_FOR_GROUNDING_REVIEW
         })
     }
+
+
+def _format_available_papers(papers: List[PaperWithSegements]) -> str:
+    """Format available papers as a list of citable arxiv IDs."""
+    if not papers:
+        return "No papers available for this subsection."
+
+    lines = []
+    for paper in papers:
+        lines.append(f"- **{paper.arxiv_id}**: {paper.title}")
+
+    return "\n".join(lines)
 
 
 def _prepare_paper_segments_string(papers: List[PaperWithSegements]) -> str:

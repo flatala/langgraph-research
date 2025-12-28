@@ -30,24 +30,38 @@ Additionally the sections that are already completed will be provided (if any ar
 
 Write a subsection that thoroughly addresses this key point using only the evidence provided in the paper segments below.
 
+# Previous Sections (for context only - DO NOT CITE)
+{preceeding_sections}
 
-# Previous Sections
-** {preceeding_sections}
 # Section Context
 **Section**: {section_title}
 **Section Purpose**: {section_outline}
 **Subsection Position**: {subsection_index} of {total_subsections}
 
+# Citable Papers for This Subsection
+**IMPORTANT**: You may ONLY cite papers from this list. Do not cite any papers from "Previous Sections".
+{available_papers}
+
 # Research Paper Segments
 {paper_segments}
 
+# Tool Available
+You have access to a search tool to find additional evidence if the initial segments are insufficient:
+
+**search_paper_fragments(paper_id, query)** - Search for relevant fragments in a paper's vector store.
+- paper_id: The arXiv ID of the paper (must be from the "Citable Papers" list above)
+- query: What you're looking for in the paper
+
+Use this tool if you need more evidence to support a claim or want to find specific information from the papers.
+
 # Writing Guidelines
-1. **No Hallucination**: Only use information explicitly present in the provided paper segments
-2. **Evidence-Based**: Every claim must reference specific findings from the segments
-3. **Synthesis Focus**: Combine insights across papers to address the key point comprehensively
-4. **Academic Tone**: Maintain scholarly, objective language appropriate for graduate-level work
-5. **Logical Structure**: Use clear topic sentences and smooth transitions between ideas
-6. **Citation Integration**: Weave citations naturally into the text flow
+1. **Cite Only Listed Papers**: You may ONLY cite papers from the "Citable Papers" list above
+2. **No Hallucination**: Only use information from the provided paper segments or found via the search tool
+3. **Evidence-Based**: Every claim must reference specific findings from the citable papers
+4. **Synthesis Focus**: Combine insights across papers to address the key point comprehensively
+5. **Academic Tone**: Maintain scholarly, objective language appropriate for graduate-level work
+6. **Logical Structure**: Use clear topic sentences and smooth transitions between ideas
+7. **Citation Integration**: Weave citations naturally into the text flow
 
 # Citation Format
 Use the following citation format that will be converted to bibtex later:
@@ -63,7 +77,7 @@ Return the subsection content as clean markdown text with:
 - Academic paragraph structure with clear topic sentences
 - Smooth integration of evidence from multiple papers when possible
 
-**Return only the subsection content. No preamble, explanations, or additional formatting.**
+**When you are done writing, return only the subsection content. No preamble, explanations, or additional formatting.**
 """
 
 CONTENT_REVIEW_PROMPT = """
@@ -89,7 +103,7 @@ Return your response as a JSON object of the following format:
     "fine_grained_results": [
         {{
             "reviewed_text": "<specific problematic part of the text>",
-            "error_type": "<clarity|conciseness|flow|grammar|vague|style|accuracy>",
+            "error_type": "<clarity|conciseness|flow|grammar|vague|style>",
             "explanation": "<detailed explanation of the issue>",
             "correction_suggestion": "<precise suggestion for improvement>",
         }},
@@ -272,6 +286,17 @@ The content review found the following issues that need to be fixed:
 # Task
 Fix all the issues listed above while preserving the overall structure and academic tone.
 Focus on addressing each specific issue mentioned.
+
+**CRITICAL - CITATION PRESERVATION**:
+The content has already been verified for factual accuracy. You must NOT change any factual content, claims, or citations.
+Your task is ONLY to improve:
+- Flow and transitions between sentences/paragraphs
+- Clarity and readability
+- Grammar and style
+- Conciseness (remove wordiness without changing meaning)
+
+Keep ALL citations EXACTLY as they appear - do not add, remove, or modify any [Author_YEAR(ArxivID)] references.
+If an issue suggests changing factual content, ignore that specific suggestion and focus only on stylistic improvements.
 
 **Return only the revised subsection content. No preamble or explanations.**
 """
