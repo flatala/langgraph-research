@@ -104,8 +104,6 @@ def main():
         logger.error(f"Review failed. Last message: {latest_msg}")
         db.update_review_status(review.id, 'failed')
     else:
-        logger.info("Final plan generated:\n%s", final_state.plan.print_plan())
-
         if final_state.completed:
             db.update_review_status(review.id, 'completed')
             db.update_review_metrics(
