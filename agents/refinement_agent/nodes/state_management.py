@@ -44,28 +44,24 @@ def initialise_refinement_progress(state: AgentState, *, config: Optional[Runnab
     return { "refinement_progress": progress }
     
 
-def decide_refinement_stage(state: AgentState, *, config: Optional[RunnableConfig] = None) -> str:
-    """
-    Decide the next refinement stage based on current progress.
-    """
+def content_review_passed(state: AgentState) -> str:
+    """Route after content feedback: passed to grounding or retry content review."""
+    status = state.refinement_progress.current_subsection_status
+    return "passed" if status == SubsectionStatus.READY_FOR_GROUNDING_REVIEW else "retry"
+
+
+def grounding_review_passed(state: AgentState) -> str:
+    """Route after grounding feedback: passed to advance or retry grounding review."""
+    status = state.refinement_progress.current_subsection_status
+    return "passed" if status == SubsectionStatus.COMPLETED else "retry"
+
+
+def has_more_subsections(state: AgentState) -> str:
+    """Route after advancing: continue to next subsection or complete."""
     progress = state.refinement_progress
-
-    if not progress or progress.current_section_index >= progress.total_sections:
-        return "complete_refinement"
-
-    status = progress.current_subsection_status
-
-    route_map = {
-        SubsectionStatus.READY_FOR_CONTEXT_PREP: "prepare_subsection_context",
-        SubsectionStatus.READY_FOR_WRITING: "write_subsection",
-        SubsectionStatus.READY_FOR_CONTENT_REVIEW: "review_content",
-        SubsectionStatus.READY_FOR_CONTENT_REVISION: "process_content_feedback",
-        SubsectionStatus.READY_FOR_GROUNDING_REVIEW: "review_grounding",
-        SubsectionStatus.READY_FOR_GROUNDING_REVISION: "process_grounding_feedback",
-        SubsectionStatus.COMPLETED: "advance_to_next"
-    }
-
-    return route_map.get(status, "complete_refinement")
+    if progress.current_section_index >= progress.total_sections:
+        return "complete"
+    return "continue"
 
 
 def advance_to_next(state: AgentState, *, config: Optional[RunnableConfig] = None) -> Dict:

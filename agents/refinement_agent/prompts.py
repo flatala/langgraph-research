@@ -30,24 +30,38 @@ Additionally the sections that are already completed will be provided (if any ar
 
 Write a subsection that thoroughly addresses this key point using only the evidence provided in the paper segments below.
 
+# Previous Sections (for context only - DO NOT CITE)
+{preceeding_sections}
 
-# Previous Sections
-** {preceeding_sections}
 # Section Context
 **Section**: {section_title}
 **Section Purpose**: {section_outline}
 **Subsection Position**: {subsection_index} of {total_subsections}
 
+# Citable Papers for This Subsection
+**IMPORTANT**: You may ONLY cite papers from this list. Do not cite any papers from "Previous Sections".
+{available_papers}
+
 # Research Paper Segments
 {paper_segments}
 
+# Tool Available
+You have access to a search tool to find additional evidence if the initial segments are insufficient:
+
+**search_paper_fragments(paper_id, query)** - Search for relevant fragments in a paper's vector store.
+- paper_id: The arXiv ID of the paper (must be from the "Citable Papers" list above)
+- query: What you're looking for in the paper
+
+Use this tool if you need more evidence to support a claim or want to find specific information from the papers.
+
 # Writing Guidelines
-1. **No Hallucination**: Only use information explicitly present in the provided paper segments
-2. **Evidence-Based**: Every claim must reference specific findings from the segments
-3. **Synthesis Focus**: Combine insights across papers to address the key point comprehensively
-4. **Academic Tone**: Maintain scholarly, objective language appropriate for graduate-level work
-5. **Logical Structure**: Use clear topic sentences and smooth transitions between ideas
-6. **Citation Integration**: Weave citations naturally into the text flow
+1. **Cite Only Listed Papers**: You may ONLY cite papers from the "Citable Papers" list above
+2. **No Hallucination**: Only use information from the provided paper segments or found via the search tool
+3. **Evidence-Based**: Every claim must reference specific findings from the citable papers
+4. **Synthesis Focus**: Combine insights across papers to address the key point comprehensively
+5. **Academic Tone**: Maintain scholarly, objective language appropriate for graduate-level work
+6. **Logical Structure**: Use clear topic sentences and smooth transitions between ideas
+7. **Citation Integration**: Weave citations naturally into the text flow
 
 # Citation Format
 Use the following citation format that will be converted to bibtex later:
@@ -63,7 +77,7 @@ Return the subsection content as clean markdown text with:
 - Academic paragraph structure with clear topic sentences
 - Smooth integration of evidence from multiple papers when possible
 
-**Return only the subsection content. No preamble, explanations, or additional formatting.**
+**When you are done writing, return only the subsection content. No preamble, explanations, or additional formatting.**
 """
 
 CONTENT_REVIEW_PROMPT = """
