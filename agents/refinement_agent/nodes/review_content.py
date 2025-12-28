@@ -1,23 +1,22 @@
 from langchain_core.runnables import RunnableConfig
 from langchain_core.messages import HumanMessage, SystemMessage
+from typing import Dict, Optional
+from pathlib import Path
+from dotenv import load_dotenv
 
+from agents.shared.utils.llm_utils import get_orchestrator_llm, invoke_llm_with_json_retry
 from agents.refinement_agent.agent_config import RefinementAgentConfiguration as Configuration
 from agents.shared.state.main_state import AgentState
 from agents.shared.state.refinement_components import (
     RefinementProgress, SubsectionStatus, ReviewRound,
     ContentReviewFineGrainedResult, ContentReviewOverallAssessment
 )
-from agents.shared.utils.llm_utils import get_orchestrator_llm, invoke_llm_with_json_retry
 
-from typing import Dict, Optional
-from pathlib import Path
-from dotenv import load_dotenv
 import json
 import re
 import logging
 
 logger = logging.getLogger(__name__)
-
 load_dotenv(                
     Path(__file__).resolve().parent.parent.parent.parent / ".env",
     override=False,         
@@ -100,14 +99,7 @@ async def review_content(state: AgentState, *, config: Optional[RunnableConfig] 
     updated_section.subsections[current_subsection_idx] = updated_subsection
     literature_survey[current_section_idx] = updated_section
     
-    # # Add AI messages to state for tracking
-    # messages_update = list(state.messages) if state.messages else []
-    # messages_update.extend([
-    #     HumanMessage(content=f"Content review request for subsection {current_subsection_idx+1}"),
-    #     AIMessage(content=f"Content review completed: Score {score}/10, {'PASSED' if meets_minimum else 'FAILED'}")
-    # ])
-    
-    # Always go to process_content_feedback which handles both pass/fail
+    # always go to process_content_feedback which handles both pass/fail
     return {
         "literature_survey": literature_survey,
         "refinement_progress": progress.model_copy(update={

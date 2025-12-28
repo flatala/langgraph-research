@@ -1,29 +1,27 @@
 from langchain_core.runnables import RunnableConfig
 from langchain_core.messages import HumanMessage, AIMessage
-
 from langgraph.prebuilt import ToolNode
+from typing import Dict, Optional, List, Tuple
+from dotenv import load_dotenv
+from pathlib import Path
 
+from data.vector_store.manager import VectorStoreManager
 from agents.refinement_agent.agent_config import RefinementAgentConfiguration as Configuration
 from agents.refinement_agent.tools import create_search_paper_fragments_tool
+from agents.shared.state.refinement_components import Section
 from agents.shared.state.main_state import AgentState
+from agents.shared.utils.llm_utils import get_orchestrator_llm, get_embedding_model, invoke_llm_with_json_retry
+from agents.shared.utils.json_utils import clean_and_parse_json
 from agents.shared.state.refinement_components import (
     SubsectionStatus, Subsection, ReviewRound,
     GroundingCheckResult, CitationExtraction, CitationClaim,
     PaperWithSegements, RefinementProgress
 )
-from agents.shared.utils.llm_utils import get_orchestrator_llm, get_embedding_model, invoke_llm_with_json_retry
-from data.vector_store.manager import VectorStoreManager
 
-from typing import Dict, Optional, List, Tuple
-from agents.shared.state.refinement_components import Section
-from pathlib import Path
-from dotenv import load_dotenv
-import json
 import asyncio
 import logging
 
 logger = logging.getLogger(__name__)
-
 load_dotenv(                
     Path(__file__).resolve().parent.parent.parent.parent / ".env",
     override=False,         
@@ -138,7 +136,7 @@ def _get_review_context(section: Section, current_subsection_idx: int) -> str:
     """Get content from current section up to and including current subsection."""
     parts = [f"## Section: {section.section_title}"]
 
-    # Include all subsections up to and including the current one
+    # include all subsections up to and including the current one
     for i, subsection in enumerate(section.subsections[:current_subsection_idx + 1]):
         if subsection.content:
             prefix = "(CURRENT) " if i == current_subsection_idx else ""
@@ -249,25 +247,12 @@ async def _verify_single_claim(
 
 async def _parse_verification_response(response: str, cfg: Configuration) -> dict:
     """Parse the verification response, handling potential JSON extraction needs."""
-    import re
-
     try:
-        # try direct JSON parsing first
-        return json.loads(response)
-    except json.JSONDecodeError:
-        # if parsing fails, try to extract JSON from mixed content
-        logger.warning("Direct JSON parsing failed, attempting extraction")
-
-        # look for JSON block in the response
-        json_match = re.search(r'\{[\s\S]*\}', response)
-        if json_match:
-            try:
-                return json.loads(json_match.group())
-            except json.JSONDecodeError:
-                pass
-
-        # fall back to using LLM to extract JSON
-        logger.warning("JSON extraction failed, using LLM retry")
+        # Use robust parser with multiple fallback strategies
+        return clean_and_parse_json(response)
+    except ValueError:
+        # All parsing fallbacks failed, use LLM to extract JSON
+        logger.warning("All JSON parsing fallbacks failed, using LLM retry")
         llm = get_orchestrator_llm(cfg=cfg).with_config(
             {"response_format": {"type": "json_object"}}
         )
