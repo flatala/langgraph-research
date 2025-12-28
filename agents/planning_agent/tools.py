@@ -4,16 +4,15 @@ from langchain_core.tools import InjectedToolArg
 from langchain_core.tools import tool
 from langgraph.types import interrupt
 from tavily import AsyncTavilyClient
+from typing import List, Dict
+from typing_extensions import Annotated
 
 from agents.planning_agent.agent_config import PlanningAgentConfiguration as Configuration
 
-from typing import List, Dict
-from typing_extensions import Annotated
 import asyncio
 import logging
 
 logger = logging.getLogger(__name__)
-
 
 @tool("arxiv_search")
 async def arxiv_search(query: str, *, config: Annotated[RunnableConfig, InjectedToolArg]) -> List[Dict]:
@@ -65,10 +64,7 @@ async def web_search(query: str, *, config: Annotated[RunnableConfig, InjectedTo
     if not cfg.tavily_api_key:
         raise ValueError("TAVILY_API_KEY not configured. Please set it in your .env file.")
 
-    # Initialize Tavily client
     tavily = AsyncTavilyClient(api_key=cfg.tavily_api_key)
-
-    # Execute search
     response = await tavily.search(
         query=query,
         max_results=cfg.tavily_max_results,
@@ -77,7 +73,6 @@ async def web_search(query: str, *, config: Annotated[RunnableConfig, InjectedTo
         include_raw_content=False
     )
 
-    # Format results
     results = []
     for result in response.get("results", []):
         results.append({

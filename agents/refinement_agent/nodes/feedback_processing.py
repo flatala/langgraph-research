@@ -1,23 +1,21 @@
 from langchain_core.runnables import RunnableConfig
 from langchain_core.messages import HumanMessage, AIMessage
-
 from langgraph.prebuilt import ToolNode
+from typing import Dict, Optional, List
+from pathlib import Path
+from dotenv import load_dotenv
 
+from agents.shared.utils.llm_utils import get_text_llm, get_embedding_model
 from agents.refinement_agent.agent_config import RefinementAgentConfiguration as Configuration
 from agents.refinement_agent.tools import create_search_paper_fragments_tool
 from agents.shared.state.main_state import AgentState
 from agents.shared.state.refinement_components import (
     RefinementProgress, SubsectionStatus, Section, Subsection
 )
-from agents.shared.utils.llm_utils import get_text_llm, get_embedding_model
 
-from typing import Dict, Optional, List
-from pathlib import Path
-from dotenv import load_dotenv
 import logging
 
 logger = logging.getLogger(__name__)
-
 load_dotenv(
     Path(__file__).resolve().parent.parent.parent.parent / ".env",
     override=False,
@@ -136,7 +134,7 @@ async def process_grounding_feedback(state: AgentState, *, config: Optional[Runn
     current_section: Section = state.literature_survey[current_section_idx]
     current_subsection: Subsection = current_section.subsections[current_subsection_idx]
 
-    # Get latest review round
+    # get latest review round
     if not current_subsection.review_history:
         logger.warning("No review history found, marking as completed")
         return {

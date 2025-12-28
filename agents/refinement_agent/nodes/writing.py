@@ -2,6 +2,9 @@ from langchain_core.runnables import RunnableConfig
 from langchain_core.messages import HumanMessage, SystemMessage, AIMessage
 from langchain_community.document_loaders import ArxivLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
+from typing import Dict, Optional, List
+from pathlib import Path
+from dotenv import load_dotenv
 
 from agents.refinement_agent.agent_config import RefinementAgentConfiguration as Configuration
 from agents.shared.state.main_state import AgentState
@@ -12,15 +15,11 @@ from agents.shared.state.refinement_components import (
     SectionStatus, SubsectionStatus
 )
 
-from typing import Dict, Optional, List
-from pathlib import Path
-from dotenv import load_dotenv
 import asyncio
 import re
 import logging
 
 logger = logging.getLogger(__name__)
-
 load_dotenv(
     Path(__file__).resolve().parent.parent.parent.parent / ".env",
     override=False,
@@ -31,7 +30,6 @@ async def prepare_subsection_context(state: AgentState, *, config: Optional[Runn
     
     Status update: READY_FOR_CONTEXT_PREP → READY_FOR_WRITING
     """
-
     progress: RefinementProgress = state.refinement_progress
     plan: Plan = state.plan
     current_section_idx: int = progress.current_section_index
@@ -41,7 +39,7 @@ async def prepare_subsection_context(state: AgentState, *, config: Optional[Runn
     section_plan: SectionPlan = plan.plan[current_section_idx]
     key_point: KeyPoint = section_plan.key_points[current_subsection_idx]
 
-    # Process papers in parallel
+    # process papers in parallel
     tasks = [
         _build_rag_and_retrieve_segments_async(
             paper_ref, key_point,
@@ -54,7 +52,7 @@ async def prepare_subsection_context(state: AgentState, *, config: Optional[Runn
     ]
     papers_with_segments = await asyncio.gather(*tasks)
     
-    # Create subsection with all context
+    # create subsection with all context
     subsection = Subsection(
         subsection_index=current_subsection_idx,
         subsection_title=key_point.text,  # Use key point text as subsection title, TODO: fix
@@ -65,7 +63,7 @@ async def prepare_subsection_context(state: AgentState, *, config: Optional[Runn
         review_history=[],
     )
     
-    # Ensure section exists and add subsection
+    # ensure section exists and add subsection
     literature_survey = list(state.literature_survey)
     if current_section_idx >= len(literature_survey):
         new_section = Section(
@@ -141,38 +139,37 @@ def _build_rag_and_retrieve_segments(
     logger.info(f"Processing paper: {paper_ref.title}")
     arxiv_id = _extract_arxiv_id(paper_ref.url)
 
-    # Check temporary paper cache first (avoids re-downloading during this review)
+    # check temporary paper cache first (avoids re-downloading during this review)
     doc = paper_cache.get(arxiv_id)
     if doc:
         logger.info(f"Using cached paper document")
     else:
-        # Download paper
+        # download paper
         logger.info(f"Downloading paper document")
         loader = ArxivLoader(query=arxiv_id, load_max_docs=1, load_full_text=True)
         docs = loader.load()
         doc = docs[0]
-        # Save to temporary cache
         paper_cache.save(arxiv_id, doc)
 
-    # Extract metadata from document
+    # extract metadata from document
     authors = doc.metadata.get('Authors', '').split(', ') if doc.metadata.get('Authors') else ["Unknown"]
     year_str = doc.metadata.get('Published', '').split('-')[0] if doc.metadata.get('Published') else None
     year = int(year_str) if year_str else paper_ref.year
     summary = doc.metadata.get('Summary', '')
 
-    # Check if we already have embeddings for this paper
+    # check if we already have embeddings for this paper
     vector_collection = db.get_vector_collection(review_id, arxiv_id)
     embeddings = get_embedding_model(cfg)
 
     if vector_collection:
-        # Load existing embeddings
+        # load existing embeddings
         logger.info(f"Using cached embeddings ({vector_collection.total_chunks} chunks)")
         vectorstore = vector_manager.load_collection(review_id, arxiv_id, embeddings)
     else:
-        # Create new embeddings
+        # create new embeddings
         logger.info(f"Creating embeddings")
 
-        # Save paper to database
+        # save paper to database
         db.get_or_create_paper(
             arxiv_id=arxiv_id,
             title=paper_ref.title,
@@ -182,7 +179,7 @@ def _build_rag_and_retrieve_segments(
             summary=summary
         )
 
-        # Chunk documents
+        # chunk documents
         text_splitter = RecursiveCharacterTextSplitter(
             chunk_size=800,
             chunk_overlap=200,
@@ -190,7 +187,7 @@ def _build_rag_and_retrieve_segments(
         )
         chunks = text_splitter.split_documents([doc])
 
-        # Create and persist vector store
+        # create and persist vector store
         vectorstore = vector_manager.create_collection(
             review_id=review_id,
             paper_id=arxiv_id,
@@ -198,7 +195,7 @@ def _build_rag_and_retrieve_segments(
             embedding_function=embeddings
         )
 
-        # Register in database
+        # register in database
         db.register_vector_collection(
             review_id=review_id,
             paper_id=arxiv_id,
@@ -209,7 +206,8 @@ def _build_rag_and_retrieve_segments(
             total_chunks=len(chunks)
         )
 
-    # Query vector store for relevant segments
+    # query vector store for relevant segments
+    # NOTE: maybe worth adding rag access as a tool for the writing agent?
     query = key_point.text
     relevant_docs = vectorstore.similarity_search_with_score(query, k=5)
     relevant_docs.sort(key=lambda x: x[1])
@@ -219,7 +217,7 @@ def _build_rag_and_retrieve_segments(
         logger.debug(f"{i}. [Score: {score:.3f}] \n {doc_chunk.page_content[:100]}...")
         relevant_segments.append(f"[Score: {score:.3f}] {doc_chunk.page_content}")
 
-    # Link paper to this review/section/subsection
+    # link paper to this review/section/subsection
     db.link_paper_to_review(
         review_id=review_id,
         paper_id=arxiv_id,
@@ -235,7 +233,7 @@ def _build_rag_and_retrieve_segments(
         arxiv_id=arxiv_id,
         arxiv_url=paper_ref.url,
         citation=f"({paper_ref.title}, {year})",
-        content=doc,  # Full document needed for grounding review
+        content=doc,
         relevant_segments=relevant_segments
     )
 
@@ -253,7 +251,6 @@ async def write_subsection(state: AgentState, *, config: Optional[RunnableConfig
     
     Status update: READY_FOR_WRITING → READY_FOR_CONTENT_REVIEW
     """
-
     cfg = Configuration.from_runnable_config(config)
     progress = state.refinement_progress
     plan = state.plan
@@ -266,10 +263,8 @@ async def write_subsection(state: AgentState, *, config: Optional[RunnableConfig
     current_subsection: Subsection = current_section.subsections[current_subsection_idx]
     section_plan: SectionPlan = plan.plan[current_section_idx]
     
-    # format paper segments for the subsection writing prompt
+    # prepare context
     papers_context = _prepare_paper_segments_string(current_subsection.papers)
-
-    # prepare and format the already completed content to use as context
     sections_context = _prepare_completed_content_string(state.literature_survey)
     
     # compile the writing prompt

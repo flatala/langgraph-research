@@ -1,11 +1,9 @@
-"""Tools for refinement agent, particularly for grounding revision with RAG."""
 from langchain_core.tools import tool
 from data.vector_store.manager import VectorStoreManager
 from typing import List, Callable
 import logging
 
 logger = logging.getLogger(__name__)
-
 
 def create_search_paper_fragments_tool(
     review_id: str,
@@ -37,18 +35,17 @@ def create_search_paper_fragments_tool(
         Returns:
             Relevant text fragments from the paper that match the query
         """
-        # Validate paper_id is available for this subsection
+        # validate paper_id is available for this subsection
         if paper_id not in available_paper_ids:
             available = ", ".join(available_paper_ids) if available_paper_ids else "none"
             return f"Error: Paper '{paper_id}' is not available for this subsection. Available papers: {available}"
 
-        # Load vector store for the paper
+        # load vector store for the paper
         vectorstore = vector_manager.load_collection(review_id, paper_id, embeddings)
-
         if vectorstore is None:
             return f"Error: Could not load vector store for paper '{paper_id}'"
 
-        # Search for relevant fragments
+        # search for relevant fragments
         try:
             docs = vectorstore.similarity_search(query, k=5)
             if not docs:

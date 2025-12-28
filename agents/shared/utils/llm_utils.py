@@ -7,15 +7,13 @@ from agents.shared.utils.json_utils import clean_and_parse_json
 from typing import List, Tuple, Dict, Any, Union
 import logging
 
+logger = logging.getLogger(__name__)
 load_dotenv(
     Path(__file__).resolve().parent.parent.parent.parent / ".env",
     override=False,
 )
 
-logger = logging.getLogger(__name__)
-
 LLMType = ChatOpenAI
-
 
 def get_orchestrator_llm(cfg: MainConfiguration) -> LLMType:
     """Get the instance of the strongest orchestrating LLM via OpenRouter."""

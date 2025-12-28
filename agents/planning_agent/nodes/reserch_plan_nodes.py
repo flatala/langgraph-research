@@ -1,5 +1,8 @@
 from langchain_core.runnables import RunnableConfig
 from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
+from pydantic import ValidationError
+from typing import List, Optional
+from data.database.crud import ReviewDB
 
 from agents.shared.state.main_state import AgentState
 from agents.shared.state.planning_components import Plan
@@ -8,16 +11,11 @@ from agents.shared.utils.json_utils import clean_and_parse_json
 from agents.planning_agent.agent_config import PlanningAgentConfiguration as Configuration
 from agents.planning_agent.tools import arxiv_search, human_assistance, web_search
 
-from pydantic import ValidationError
-from typing import List, Optional
-from data.database.crud import ReviewDB
-
 import json
 import re
 import logging
 
 logger = logging.getLogger(__name__)
-
 
 def append_system_prompt(state: AgentState, *, config=None):
     cfg = Configuration.from_runnable_config(config)

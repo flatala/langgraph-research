@@ -1,7 +1,6 @@
 from langchain_core.callbacks.base import BaseCallbackHandler
 from typing import Any, Dict
 
-# Try to import from rich, but don't fail if it's not installed
 try:
     from rich.progress import Progress
 except ImportError:
