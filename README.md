@@ -1,6 +1,6 @@
 # Literature Review Agent
 
-An autonomous multi-agent system built with LangGraph that generates comprehensive literature reviews from academic papers. Given a research topic, it searches arXiv, plans the review structure, retrieves and synthesizes relevant papers, and produces a grounded, citation-verified literature survey.
+An autonomous multi-agent system built with LangGraph that generates comprehensive literature reviews from academic papers. Given a research topic, it searches the web and arXiv, plans the review structure, retrieves and synthesizes relevant papers, and produces a grounded, citation-verified literature survey.
 
 ## Architecture
 
