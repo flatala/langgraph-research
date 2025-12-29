@@ -1,0 +1,26 @@
+---
+config:
+  flowchart:
+    curve: linear
+---
+graph TD;
+	__start__([<p>__start__</p>]):::first
+	collect_papers(collect_papers)
+	generate_title(generate_title)
+	generate_section_intros(generate_section_intros)
+	generate_subsection_titles(generate_subsection_titles)
+	generate_latex_content(generate_latex_content)
+	generate_bibtex_content(generate_bibtex_content)
+	create_zip_export(create_zip_export)
+	__end__([<p>__end__</p>]):::last
+	__start__ --> collect_papers;
+	collect_papers --> generate_title;
+	generate_bibtex_content --> create_zip_export;
+	generate_latex_content --> generate_bibtex_content;
+	generate_section_intros --> generate_subsection_titles;
+	generate_subsection_titles --> generate_latex_content;
+	generate_title --> generate_section_intros;
+	create_zip_export --> __end__;
+	classDef default fill:#f2f0ff,line-height:1.2
+	classDef first fill-opacity:0
+	classDef last fill:#bfb6fc

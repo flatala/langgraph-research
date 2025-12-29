@@ -4,6 +4,7 @@ from langgraph.graph.message import add_messages
 
 from agents.shared.state.planning_components import Plan
 from agents.shared.state.refinement_components import RefinementProgress, Section
+from agents.shared.state.overleaf_components import OverleafProgress
 
 class AgentState(BaseModel):
     # initial params
@@ -23,7 +24,8 @@ class AgentState(BaseModel):
     refinement_progress: Optional[RefinementProgress] = None
     literature_survey: List[Section] = Field(default_factory=list)
 
-    # latex export
+    # overleaf/latex export
+    overleaf_progress: Optional[OverleafProgress] = None
     latex_export_path: Optional[str] = None
 
     class Config:

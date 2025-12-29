@@ -11,6 +11,7 @@ sys.path.insert(0, str(project_root))
 from agents.graph import graph as main_graph
 from agents.planning_agent.graph import planning_graph
 from agents.refinement_agent.graph import refinement_graph
+from agents.overleaf.graph import overleaf_graph
 
 
 def generate_diagrams(output_dir: Path = None):
@@ -22,6 +23,7 @@ def generate_diagrams(output_dir: Path = None):
         "main_graph": (main_graph, False),
         "planning_graph": (planning_graph, True),
         "refinement_graph": (refinement_graph, True),
+        "overleaf_graph": (overleaf_graph, True),
     }
 
     for name, (graph, xray) in graphs.items():

@@ -74,9 +74,12 @@ For each section, provide:
     - Each point must cite **2–3 distinct papers** with metadata
 
 # Citation Guidelines
-- **Do not reuse papers** across sections unless critical (justify reuse in `citation_reason`)  
-- **All relevant papers** from the search must be cited at least once  
-- **Distribute citations** evenly across sections and key points  
+- **Match papers to key points based on title and abstract**: Only assign a paper to a key point if its title or abstract clearly indicates it covers that topic
+  - If no papers clearly match a key point topic, either search for more specific papers OR adjust the key point text to reflect what the available papers actually cover
+- **Write key points that match available papers**: Don't create overly specific key points that the found papers don't actually address
+- **citation_reason must reflect what's visible**: Explain what aspect of the paper (based on its title/abstract) makes it relevant to this key point
+- **Aim for diversity**: Use a diverse set of papers across the review (aim for 10+ unique papers depending on topic availability)
+- Papers can be reused across sections if genuinely relevant
 - Focus on **recent and influential work**, but maintain broad coverage
 
 # Available Tools
