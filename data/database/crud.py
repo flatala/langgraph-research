@@ -318,3 +318,133 @@ class ReviewDB:
                    .all())
         finally:
             session.close()
+
+    # Content persistence operations
+    def get_or_create_section(self, review_id: str, section_index: int,
+                              title: str, outline: str = "") -> str:
+        """Get existing section ID or create new one."""
+        session = self.get_session()
+        try:
+            existing = session.query(Section).filter(
+                Section.review_id == review_id,
+                Section.section_index == section_index
+            ).first()
+
+            if existing:
+                return existing.id
+
+            section = Section(
+                id=str(uuid.uuid4()),
+                review_id=review_id,
+                section_index=section_index,
+                title=title,
+                outline=outline
+            )
+            session.add(section)
+            session.commit()
+            logger.info(f"Created section {section_index} for review {review_id[:8]}")
+            return section.id
+        finally:
+            session.close()
+
+    def save_subsection_content(self, section_id: str, subsection_index: int,
+                                title: str, content: str, key_point: str = ""):
+        """Save or update subsection content."""
+        session = self.get_session()
+        try:
+            existing = session.query(Subsection).filter(
+                Subsection.section_id == section_id,
+                Subsection.subsection_index == subsection_index
+            ).first()
+
+            if existing:
+                existing.title = title
+                existing.content = content
+                existing.key_point = key_point
+                existing.completed_at = datetime.utcnow()
+                session.commit()
+                logger.info(f"Updated subsection {subsection_index} content")
+            else:
+                subsection = Subsection(
+                    id=str(uuid.uuid4()),
+                    section_id=section_id,
+                    subsection_index=subsection_index,
+                    title=title,
+                    content=content,
+                    key_point=key_point,
+                    completed_at=datetime.utcnow()
+                )
+                session.add(subsection)
+                session.commit()
+                logger.info(f"Created subsection {subsection_index}")
+        finally:
+            session.close()
+
+    def get_literature_survey(self, review_id: str):
+        """
+        Reconstruct literature_survey from database.
+        Returns List[Section] (Pydantic models from refinement_components).
+        """
+        from agents.shared.state.refinement_components import (
+            Section as SectionModel,
+            Subsection as SubsectionModel,
+            PaperWithSegements
+        )
+        from langchain_core.documents import Document
+
+        session = self.get_session()
+        try:
+            db_sections = (session.query(Section)
+                         .filter(Section.review_id == review_id)
+                         .order_by(Section.section_index)
+                         .all())
+
+            literature_survey = []
+            for db_sec in db_sections:
+                db_subsections = (session.query(Subsection)
+                                 .filter(Subsection.section_id == db_sec.id)
+                                 .order_by(Subsection.subsection_index)
+                                 .all())
+
+                subsections = []
+                for db_sub in db_subsections:
+                    # Get papers for this subsection
+                    review_papers = (session.query(ReviewPaper, Paper)
+                                    .join(Paper)
+                                    .filter(
+                                        ReviewPaper.review_id == review_id,
+                                        ReviewPaper.section_index == db_sec.section_index,
+                                        ReviewPaper.subsection_index == db_sub.subsection_index
+                                    ).all())
+
+                    papers = []
+                    for rp, p in review_papers:
+                        papers.append(PaperWithSegements(
+                            title=p.title,
+                            authors=p.authors,
+                            arxiv_id=p.arxiv_id,
+                            arxiv_url=p.url or f'https://arxiv.org/abs/{p.arxiv_id}',
+                            citation=rp.citation or '',
+                            content=Document(page_content=''),
+                            relevant_segments=[]
+                        ))
+
+                    subsections.append(SubsectionModel(
+                        subsection_index=db_sub.subsection_index,
+                        subsection_title=db_sub.title,
+                        papers=papers,
+                        key_point_text=db_sub.key_point or '',
+                        content=db_sub.content or ''
+                    ))
+
+                literature_survey.append(SectionModel(
+                    section_index=db_sec.section_index,
+                    section_title=db_sec.title,
+                    section_outline=db_sec.outline or '',
+                    section_introduction='',
+                    subsections=subsections
+                ))
+
+            return literature_survey
+        finally:
+            session.close()

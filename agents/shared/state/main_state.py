@@ -22,7 +22,10 @@ class AgentState(BaseModel):
     # survey refinement
     refinement_progress: Optional[RefinementProgress] = None
     literature_survey: List[Section] = Field(default_factory=list)
-    
+
+    # latex export
+    latex_export_path: Optional[str] = None
+
     class Config:
         arbitrary_types_allowed = True
 

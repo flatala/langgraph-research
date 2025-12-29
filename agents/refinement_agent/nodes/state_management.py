@@ -71,7 +71,10 @@ def advance_to_next(state: AgentState, *, config: Optional[RunnableConfig] = Non
     progress = state.refinement_progress
     current_section_idx = progress.current_section_index
     current_subsection_idx = progress.current_subsection_index
-    
+
+    # save the just-completed subsection to database
+    _save_completed_subsection(state)
+
     # check if more subsections are left in current section
     total_subsections = progress.subsections_per_section[current_section_idx]
     next_subsection_idx = current_subsection_idx + 1
@@ -139,3 +142,35 @@ def cleanup_temp_cache(state: AgentState, *, config: Optional[RunnableConfig] = 
     paper_cache.cleanup()
 
     return {}
+
+
+def _save_completed_subsection(state: AgentState) -> None:
+    """Save the current subsection content to database."""
+    from data.database.crud import ReviewDB
+
+    db = ReviewDB()
+    progress = state.refinement_progress
+    section_idx = progress.current_section_index
+    subsection_idx = progress.current_subsection_index
+
+    current_section = state.literature_survey[section_idx]
+    current_subsection = current_section.subsections[subsection_idx]
+
+    # get or create section in DB
+    section_id = db.get_or_create_section(
+        review_id=state.review_id,
+        section_index=section_idx,
+        title=current_section.section_title,
+        outline=current_section.section_outline
+    )
+
+    # save subsection content
+    db.save_subsection_content(
+        section_id=section_id,
+        subsection_index=subsection_idx,
+        title=current_subsection.subsection_title or current_subsection.key_point_text,
+        content=current_subsection.content,
+        key_point=current_subsection.key_point_text
+    )
+
+    logger.info(f"Saved subsection {section_idx}.{subsection_idx} to database")

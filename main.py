@@ -111,6 +111,15 @@ def main():
                 total_sections=len(final_state.literature_survey),
                 total_papers_used=len(db.get_papers_for_review(review.id))
             )
+
+            # Display LaTeX export path if available
+            if final_state.latex_export_path:
+                console.print(Panel(
+                    f"LaTeX export: {final_state.latex_export_path}",
+                    title="[bold cyan]📄 LaTeX Export[/bold cyan]",
+                    expand=False
+                ))
+
             console.print(Panel(
                 f"Review ID: {review.id}",
                 title="[bold green]✓ Review Completed and Saved[/bold green]",
