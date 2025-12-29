@@ -50,6 +50,14 @@ class LatexBuilder:
         # collect all papers from subsections
         self._collect_papers()
 
+        # generate proper academic title
+        logger.info("Generating survey title...")
+        self.generated_title = await self._generate_survey_title()
+
+        # generate section introductions and improved titles
+        logger.info("Generating section introductions and titles...")
+        await self._generate_section_metadata()
+
         # generate LaTeX and BibTeX content
         latex_content = await self._generate_latex()
         bibtex_content = self._generate_bibtex()
@@ -74,6 +82,81 @@ class LatexBuilder:
                     if paper.arxiv_id not in self.papers_map:
                         self.papers_map[paper.arxiv_id] = paper
 
+    async def _generate_survey_title(self) -> str:
+        """Generate a proper academic title for the literature survey."""
+        # Build context from sections
+        section_titles = [s.section_title for s in self.literature_survey]
+
+        prompt = f"""Generate a concise, academic title for a literature survey paper.
+
+Research Topic: {self.topic}
+
+Sections covered:
+{chr(10).join(f'- {t}' for t in section_titles)}
+
+Requirements:
+- Should be a proper academic paper title (typically 8-15 words)
+- Should capture the main theme and scope
+- Should sound professional and scholarly
+- Do NOT include "A Survey of" or "A Review of" - just the descriptive title
+- Return ONLY the title, nothing else"""
+
+        try:
+            response = await self.llm.ainvoke([HumanMessage(content=prompt)])
+            title = response.content.strip().strip('"').strip("'")
+            logger.info(f"Generated title: {title}")
+            return title
+        except Exception as e:
+            logger.warning(f"Title generation failed: {e}, using original topic")
+            return self.topic
+
+    async def _generate_section_metadata(self) -> None:
+        """Generate introductions for sections and improved titles for subsections."""
+        self.section_intros: Dict[int, str] = {}
+        self.subsection_titles: Dict[tuple, str] = {}
+
+        for section in self.literature_survey:
+            # Build context for this section
+            subsection_summaries = []
+            for sub in section.subsections:
+                if sub and sub.content:
+                    # Take first 200 chars of content as summary
+                    summary = sub.content[:200] + "..." if len(sub.content) > 200 else sub.content
+                    subsection_summaries.append(f"- {sub.key_point_text}: {summary}")
+
+            # Generate section introduction only (keep original title)
+            prompt = f"""Write a 2-3 sentence introduction for this section of a literature survey.
+
+Section Title: {section.section_title}
+Section Outline: {section.section_outline}
+
+Subsections covered:
+{chr(10).join(subsection_summaries[:5])}
+
+Return ONLY the introduction paragraph, nothing else."""
+
+            try:
+                response = await self.llm.ainvoke([HumanMessage(content=prompt)])
+                self.section_intros[section.section_index] = response.content.strip()
+            except Exception as e:
+                logger.warning(f"Section intro generation failed for section {section.section_index}: {e}")
+
+            # Generate improved subsection titles
+            for sub in section.subsections:
+                if sub and sub.key_point_text:
+                    prompt = f"""Convert this key point into a concise academic subsection title (3-8 words):
+
+Key point: {sub.key_point_text}
+
+Return ONLY the title, nothing else."""
+
+                    try:
+                        response = await self.llm.ainvoke([HumanMessage(content=prompt)])
+                        title = response.content.strip().strip('"').strip("'")
+                        self.subsection_titles[(section.section_index, sub.subsection_index)] = title
+                    except Exception as e:
+                        logger.warning(f"Subsection title generation failed: {e}")
+
     async def _generate_latex(self) -> str:
         """Generate the main.tex content."""
         latex = r"""\documentclass[12pt,a4paper]{article}
@@ -81,7 +164,7 @@ class LatexBuilder:
 % Packages
 \usepackage[utf8]{inputenc}
 \usepackage[T1]{fontenc}
-\usepackage{hyperref}
+\usepackage[colorlinks=true,linkcolor=black,citecolor=black,urlcolor=black]{hyperref}
 \usepackage[backend=biber,style=numeric,sorting=none]{biblatex}
 \usepackage{geometry}
 \usepackage{setspace}
@@ -98,9 +181,10 @@ class LatexBuilder:
 
 % Document info
 """
-        escaped_topic = self._escape_latex(self.topic)
-        latex += f"\\title{{{escaped_topic}}}\n"
-        latex += "\\author{Generated Literature Review}\n"
+        # Use generated title
+        escaped_title = self._escape_latex(self.generated_title)
+        latex += f"\\title{{{escaped_title}}}\n"
+        latex += "\\author{Generated Literature Survey}\n"
         latex += "\\date{\\today}\n\n"
         latex += r"""\begin{document}
 
@@ -127,28 +211,34 @@ class LatexBuilder:
         """Format a single section with subsections."""
         content = ""
 
-        # title
+        # Keep original section title from plan
         escaped_title = self._escape_latex(section.section_title)
         content += f"\\section{{{escaped_title}}}\n\n"
 
-        # section intro
-        if section.section_introduction:
-            formatted_intro = await self._format_math_for_latex(section.section_introduction)
+        # Use generated intro if available
+        intro = self.section_intros.get(section.section_index, section.section_introduction)
+        if intro:
+            formatted_intro = await self._format_math_for_latex(intro)
             escaped_intro = self._escape_latex_preserve_math(formatted_intro)
             content += f"{escaped_intro}\n\n"
 
         # subsections
         for subsection in section.subsections:
-            subsection_content = await self._format_subsection(subsection)
+            subsection_content = await self._format_subsection(subsection, section.section_index)
             content += subsection_content
 
         return content
 
-    async def _format_subsection(self, subsection: Subsection) -> str:
+    async def _format_subsection(self, subsection: Subsection, section_index: int) -> str:
         """Format a single subsection."""
         content = ""
-        escaped_title = self._escape_latex(subsection.subsection_title or subsection.key_point_text)
+
+        # Use generated title if available
+        key = (section_index, subsection.subsection_index)
+        title = self.subsection_titles.get(key, subsection.subsection_title or subsection.key_point_text)
+        escaped_title = self._escape_latex(title)
         content += f"\\subsection{{{escaped_title}}}\n\n"
+
         if subsection.content:
             converted_content = self._convert_citations(subsection.content)
             formatted_content = await self._format_math_for_latex(converted_content)
