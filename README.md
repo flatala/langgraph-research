@@ -25,14 +25,9 @@ The Literature Review Agent automates the entire academic literature review proc
 
 ## Overall Architecture
 
-<table>
-<tr>
-<td width="15%" valign="top">
-
-<img src="graph_diagrams/main_graph.png" alt="Main Architecture Graph" width="100%"/>
-
-</td>
-<td width="85%" valign="top">
+<p align="center">
+  <img src="graph_diagrams/main_graph.png" alt="Main Architecture Graph" width="110"/>
+</p>
 
 The system is composed of three sequential sub-agents orchestrated by a parent graph:
 
@@ -42,22 +37,13 @@ The system is composed of three sequential sub-agents orchestrated by a parent g
 
 Each agent operates autonomously within its domain while passing structured state to the next stage. The architecture ensures that every claim in the final output is traceable back to its source paper.
 
-</td>
-</tr>
-</table>
-
 ---
 
 ## Planning Agent
 
-<table>
-<tr>
-<td width="30%" valign="top">
-
-<img src="graph_diagrams/planning_graph.png" alt="Planning Agent Graph" width="100%"/>
-
-</td>
-<td width="70%" valign="top">
+<p align="center">
+  <img src="graph_diagrams/planning_graph.png" alt="Planning Agent Graph" width="320"/>
+</p>
 
 ### Purpose
 The Planning Agent transforms a research topic into a comprehensive, actionable review plan with curated paper assignments.
@@ -81,22 +67,13 @@ The Planning Agent transforms a research topic into a comprehensive, actionable 
 - **Tavily** captures recent developments not yet in academic literature
 - **Human-in-the-loop** ensures the review direction matches user intent
 
-</td>
-</tr>
-</table>
-
 ---
 
 ## Refinement Agent
 
-<table>
-<tr>
-<td width="30%" valign="top">
-
-<img src="graph_diagrams/refinement_graph.png" alt="Refinement Agent Graph" width="100%"/>
-
-</td>
-<td width="70%" valign="top">
+<p align="center">
+  <img src="graph_diagrams/refinement_graph.png" alt="Refinement Agent Graph" width="280"/>
+</p>
 
 ### Purpose
 The Refinement Agent generates high-quality, grounded content for each subsection through an iterative write-review-refine loop.
@@ -123,22 +100,13 @@ Each subsection goes through two review stages:
 
 If either review fails, the content is refined and re-reviewed until it passes or hits the retry limit.
 
-</td>
-</tr>
-</table>
-
 ---
 
 ## Overleaf Export Agent
 
-<table>
-<tr>
-<td width="30%" valign="top">
-
-<img src="graph_diagrams/overleaf_graph.png" alt="Overleaf Agent Graph" width="100%"/>
-
-</td>
-<td width="70%" valign="top">
+<p align="center">
+  <img src="graph_diagrams/overleaf_graph.png" alt="Overleaf Agent Graph" width="200"/>
+</p>
 
 ### Purpose
 The Overleaf Agent transforms the completed literature survey into a publication-ready LaTeX project.
@@ -160,10 +128,6 @@ The exported ZIP includes:
 
 ### Citation Conversion
 Citations in the format `[Author_YEAR(ArxivID)]` are automatically converted to proper `\cite{key}` commands with corresponding BibTeX entries.
-
-</td>
-</tr>
-</table>
 
 ---
 
@@ -256,6 +220,11 @@ The agent will then:
 2. Generate each subsection with proper citations
 3. Review and refine content until quality standards are met
 4. Export the final literature survey as a LaTeX project
+
+### Cost & Time
+Using **Grok 4.1 Fast** via OpenRouter:
+- **Cost**: ~$0.25 per review
+- **Time**: 20-25 minutes for a complete literature survey
 
 ---
 
