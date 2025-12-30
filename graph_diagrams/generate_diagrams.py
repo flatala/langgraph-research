@@ -8,10 +8,10 @@ from pathlib import Path
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
-from agents.graph import graph as main_graph
-from agents.planning_agent.graph import planning_graph
-from agents.refinement_agent.graph import refinement_graph
-from agents.overleaf.graph import overleaf_graph
+from agentic_workflow.graph import graph as main_graph
+from agentic_workflow.planning.graph import planning_graph
+from agentic_workflow.refinement.graph import refinement_graph
+from agentic_workflow.overleaf.graph import overleaf_graph
 
 
 def generate_diagrams(output_dir: Path = None):

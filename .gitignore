@@ -8,11 +8,8 @@
 .DS_Store
 
 # Database and vector store
-data/research.db
-data/vector_store/collections/
+data_layer/research.db
+data_layer/vector_store/collections/
 
 # Temporary paper cache (cleaned up after each review)
-data/temp_cache/*/
-
-# Old cache (deprecated)
-cache/
+data_layer/temp_cache/*/

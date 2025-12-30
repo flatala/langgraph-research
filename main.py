@@ -4,11 +4,11 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
-from agents.shared.state.main_state import AgentState
-from agents.graph import graph
-from data.database.crud import ReviewDB
-from agents.shared.utils.logging_utils import setup_logging
-from agents.shared.utils.callbacks import RichProgressCallbackHandler
+from agentic_workflow.shared.state.main_state import AgentState
+from agentic_workflow.graph import graph
+from data_layer.database.crud import ReviewDB
+from agentic_workflow.shared.utils.logging_utils import setup_logging
+from agentic_workflow.shared.utils.callbacks import RichProgressCallbackHandler
 
 from dotenv import load_dotenv
 from pathlib import Path
