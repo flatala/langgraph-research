@@ -27,12 +27,12 @@ The Literature Review Agent automates the entire academic literature review proc
 
 <table>
 <tr>
-<td>
+<td width="15%" valign="top">
 
-<img src="graph_diagrams/main_graph.png" alt="Main Architecture Graph" width="90"/>
+<img src="graph_diagrams/main_graph.png" alt="Main Architecture Graph" width="100%"/>
 
 </td>
-<td>
+<td width="85%" valign="top">
 
 The system is composed of three sequential sub-agents orchestrated by a parent graph:
 
@@ -52,12 +52,12 @@ Each agent operates autonomously within its domain while passing structured stat
 
 <table>
 <tr>
-<td>
+<td width="30%" valign="top">
 
-<img src="graph_diagrams/planning_graph.png" alt="Planning Agent Graph" width="380"/>
+<img src="graph_diagrams/planning_graph.png" alt="Planning Agent Graph" width="100%"/>
 
 </td>
-<td>
+<td width="70%" valign="top">
 
 ### Purpose
 The Planning Agent transforms a research topic into a comprehensive, actionable review plan with curated paper assignments.
@@ -91,12 +91,12 @@ The Planning Agent transforms a research topic into a comprehensive, actionable 
 
 <table>
 <tr>
-<td>
+<td width="30%" valign="top">
 
-<img src="graph_diagrams/refinement_graph.png" alt="Refinement Agent Graph" width="230"/>
+<img src="graph_diagrams/refinement_graph.png" alt="Refinement Agent Graph" width="100%"/>
 
 </td>
-<td>
+<td width="70%" valign="top">
 
 ### Purpose
 The Refinement Agent generates high-quality, grounded content for each subsection through an iterative write-review-refine loop.
@@ -133,12 +133,12 @@ If either review fails, the content is refined and re-reviewed until it passes o
 
 <table>
 <tr>
-<td>
+<td width="30%" valign="top">
 
-<img src="graph_diagrams/overleaf_graph.png" alt="Overleaf Agent Graph" width="230"/>
+<img src="graph_diagrams/overleaf_graph.png" alt="Overleaf Agent Graph" width="100%"/>
 
 </td>
-<td>
+<td width="70%" valign="top">
 
 ### Purpose
 The Overleaf Agent transforms the completed literature survey into a publication-ready LaTeX project.
