@@ -7,7 +7,7 @@ An autonomous multi-agent system built with LangGraph that generates comprehensi
 ## Example Usage
 
 <p align="center">
-  <img src="docs/example.png" alt="Example Usage" width="700"/>
+  <img src="docs/example.png" alt="Example Usage" width="100%"/>
 </p>
 
 The Literature Review Agent automates the entire academic literature review process:
