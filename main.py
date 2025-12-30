@@ -4,11 +4,11 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
-from agents.shared.state.main_state import AgentState
-from agents.graph import graph
-from data.database.crud import ReviewDB
-from agents.shared.utils.logging_utils import setup_logging
-from agents.shared.utils.callbacks import RichProgressCallbackHandler
+from agentic_workflow.shared.state.main_state import AgentState
+from agentic_workflow.graph import graph
+from data_layer.database.crud import ReviewDB
+from agentic_workflow.shared.utils.logging_utils import setup_logging
+from agentic_workflow.shared.utils.callbacks import RichProgressCallbackHandler
 
 from dotenv import load_dotenv
 from pathlib import Path
@@ -104,8 +104,6 @@ def main():
         logger.error(f"Review failed. Last message: {latest_msg}")
         db.update_review_status(review.id, 'failed')
     else:
-        logger.info("Final plan generated:\n%s", final_state.plan.print_plan())
-
         if final_state.completed:
             db.update_review_status(review.id, 'completed')
             db.update_review_metrics(
@@ -113,6 +111,15 @@ def main():
                 total_sections=len(final_state.literature_survey),
                 total_papers_used=len(db.get_papers_for_review(review.id))
             )
+
+            # Display LaTeX export path if available
+            if final_state.latex_export_path:
+                console.print(Panel(
+                    f"LaTeX export: {final_state.latex_export_path}",
+                    title="[bold cyan]📄 LaTeX Export[/bold cyan]",
+                    expand=False
+                ))
+
             console.print(Panel(
                 f"Review ID: {review.id}",
                 title="[bold green]✓ Review Completed and Saved[/bold green]",
