@@ -13,3 +13,7 @@ data_layer/vector_store/collections/
 
 # Temporary paper cache (cleaned up after each review)
 data_layer/temp_cache/*/
+
+# Logs and exports
+logs/
+exports/

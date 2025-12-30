@@ -221,6 +221,11 @@ The agent will then:
 3. Review and refine content until quality standards are met
 4. Export the final literature survey as a LaTeX project
 
+### Cost & Time
+Using **Grok 4.1 Fast** via OpenRouter:
+- **Cost**: ~$0.25 per review
+- **Time**: 20-25 minutes for a complete literature survey
+
 ---
 
 ## Project Structure
