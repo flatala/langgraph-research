@@ -26,7 +26,7 @@ The Literature Review Agent automates the entire academic literature review proc
 ## Overall Architecture
 
 <p align="center">
-  <img src="graph_diagrams/main_graph.png" alt="Main Architecture Graph" width="550"/>
+  <img src="graph_diagrams/main_graph.png" alt="Main Architecture Graph" width="110"/>
 </p>
 
 The system is composed of three sequential sub-agents orchestrated by a parent graph:

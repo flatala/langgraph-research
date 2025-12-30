@@ -23,7 +23,7 @@ def generate_diagrams(output_dir: Path = None):
 
     # (graph, xray, layout) - LR=horizontal, TD=vertical
     graphs = {
-        "main_graph": (main_graph, False, "LR"),
+        "main_graph": (main_graph, False, "TD"),
         "planning_graph": (planning_graph, True, "TD"),
         "refinement_graph": (refinement_graph, True, "TD"),
         "overleaf_graph": (overleaf_graph, True, "TD"),
